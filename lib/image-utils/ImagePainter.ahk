@@ -8,6 +8,7 @@ class ImagePainter {
         this.window := ""
         this.windowVisible := false
         this.margin := { x: 0, y: 0 }
+        this.scale := 1
         this.current := { image: "", name: "", x: "", y: "", w: 0, h: 0 }
         this.prev := { image: "", name: "", x: "", y: "", w: 0, h: 0 }
     }
@@ -99,8 +100,10 @@ class ImagePainter {
             return true
 
         try {
-            this.current.w := ImageWidth(this.current.image)
-            this.current.h := ImageHeight(this.current.image)
+            sourceW := ImageWidth(this.current.image)
+            sourceH := ImageHeight(this.current.image)
+            this.current.w := Max(1, Round(sourceW * this.scale))
+            this.current.h := Max(1, Round(sourceH * this.scale))
             return true
         } catch {
             this.Clear()
@@ -129,8 +132,9 @@ class ImagePainter {
         sizeConstraints := " +MinSize" this.current.w "x" this.current.h
             . " +MaxSize" this.current.w "x" this.current.h
 
-        ; GUI: transparent, always-on-top, no DPI scaling
-        this.window := Gui("+LastFound -Caption +AlwaysOnTop +ToolWindow -Border -DPIScale -Resize" sizeConstraints)
+        ; Transparent, always-on-top, click-through overlay with no activation.
+        ; +E0x20 adds WS_EX_TRANSPARENT so the marker cannot steal mouse clicks.
+        this.window := Gui("+LastFound -Caption +AlwaysOnTop +ToolWindow -Border -DPIScale -Resize +E0x20" sizeConstraints)
         this.window.MarginX := 0
         this.window.MarginY := 0
         this.window.Title := ""
@@ -143,7 +147,7 @@ class ImagePainter {
 
         ; ImagePut child window styles: WS_CHILD | WS_VISIBLE | WS_EX_LAYERED
         windowStyles := WS_CHILD | WS_VISIBLE | WS_EX_LAYERED
-        ImageShow(this.current.image, , [0, 0], windowStyles, , display.hwnd)
+        ImageShow(this.current.image, , [0, 0, this.current.w, this.current.h], windowStyles, , display.hwnd)
     }
 
     _showAtPosition() {
