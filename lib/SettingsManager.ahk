@@ -41,8 +41,8 @@ class SettingsManager {
     ConfigureTray(cfg) {
         A_TrayMenu.Delete()
 
-        mouseMenu := this.BuildIndicatorMenu("Mouse", cfg.cursor, true)
-        caretMenu := this.BuildIndicatorMenu("Caret", cfg.caret, false)
+        mouseMenu := this.BuildIndicatorMenu("Mouse", cfg.cursor, true, "Показывать у мыши")
+        caretMenu := this.BuildIndicatorMenu("Caret", cfg.caret, false, "Показывать в поле ввода")
 
         A_TrayMenu.Add("У мыши", mouseMenu)
         A_TrayMenu.Add("В поле ввода", caretMenu)
@@ -53,10 +53,9 @@ class SettingsManager {
         A_TrayMenu.Add("Выход", (*) => ExitApp())
     }
 
-    BuildIndicatorMenu(section, cfg, includeIdle) {
+    BuildIndicatorMenu(section, cfg, includeIdle, enabledLabel) {
         menu := Menu()
 
-        enabledLabel := "Показывать"
         menu.Add(enabledLabel, ObjBindMethod(this, "SetBoolAndReload", section, "Enabled", !cfg.enabled))
         if cfg.enabled
             menu.Check(enabledLabel)
