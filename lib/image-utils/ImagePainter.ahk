@@ -6,7 +6,13 @@ class ImagePainter {
     __New() {
         this.bgColor := "ffffff"
         this.window := ""
+        this.imageHwnd := 0
         this.windowVisible := false
+        this.windowCreatedTick := 0
+        ; Even if both HWNDs still exist, periodically rebuild the tiny overlay.
+        ; This recovers from rare compositor/ImageShow states where the parent
+        ; stays visible but the flag content turns blank/white after long use.
+        this.healthRefreshPeriod := 15000
         this.margin := { x: 0, y: 0 }
         this.scale := 1
         this.opacity := 255
@@ -34,11 +40,15 @@ class ImagePainter {
         this._dropStaleWindow()
         imageChanged := this._hasImageChanged()
 
+        ; A surviving parent GUI is not enough to prove that the actual
+        ; ImageShow child is healthy. Recreate immediately when the image child
+        ; disappeared, and periodically refresh a long-lived overlay so a blank
+        ; compositor surface cannot remain stuck forever.
+        if (this.window != "" and (imageChanged or this._shouldHealthRefresh()))
+            this.RemoveWindow()
+
         if this._canSkipRepaint(imageChanged)
             return
-
-        if (this.window != "" and imageChanged)
-            this.RemoveWindow()
 
         if !this._loadDimensions(imageChanged)
             return
@@ -50,23 +60,24 @@ class ImagePainter {
     }
 
     RemoveWindow() {
-        if this.window != "" {
+        if this.window != ""
             try this.window.Destroy()
-            this.window := ""
-            this.windowVisible := false
-        }
+        this.window := ""
+        this.imageHwnd := 0
+        this.windowVisible := false
+        this.windowCreatedTick := 0
     }
 
     HideWindow() {
         if this.window != "" {
             if !this._windowExists() {
-                this.window := ""
-                this.windowVisible := false
+                this._forgetWindow()
                 return
             }
             try this.window.Hide()
             catch {
-                this.window := ""
+                this._forgetWindow()
+                return
             }
             this.windowVisible := false
         }
@@ -85,11 +96,45 @@ class ImagePainter {
         }
     }
 
+    _imageWindowExists() {
+        if !this.imageHwnd
+            return false
+        try return DllCall("IsWindow", "Ptr", this.imageHwnd, "Int") != 0
+        catch
+            return false
+    }
+
+    _forgetWindow() {
+        this.window := ""
+        this.imageHwnd := 0
+        this.windowVisible := false
+        this.windowCreatedTick := 0
+    }
+
     _dropStaleWindow() {
-        if this.window != "" and !this._windowExists() {
-            this.window := ""
-            this.windowVisible := false
+        if this.window == ""
+            return
+
+        if !this._windowExists() {
+            this._forgetWindow()
+            return
         }
+
+        ; ImageShow creates the real image window as a child. If that child is
+        ; gone while the parent GUI survives, the user sees only BackColor,
+        ; i.e. the small white rectangle observed in long-running sessions.
+        if !this._imageWindowExists()
+            this.RemoveWindow()
+    }
+
+    _shouldHealthRefresh() {
+        if (this.window == "" or !this.windowVisible or !this.windowCreatedTick)
+            return false
+        return (this._tick() - this.windowCreatedTick) >= this.healthRefreshPeriod
+    }
+
+    _tick() {
+        return DllCall("GetTickCount64", "UInt64")
     }
 
     _hasValidState() {
@@ -115,7 +160,7 @@ class ImagePainter {
     }
 
     _canSkipRepaint(imageChanged) {
-        if (this.window == "" or !this.windowVisible or !this._windowExists())
+        if (this.window == "" or !this.windowVisible or !this._windowExists() or !this._imageWindowExists())
             return false
         return (this.current.x == this.prev.x and
             this.current.y == this.prev.y and
@@ -147,8 +192,7 @@ class ImagePainter {
             this._initWindow()
             return true
         } catch {
-            this.window := ""
-            this.windowVisible := false
+            this._forgetWindow()
             return false
         }
     }
@@ -174,10 +218,13 @@ class ImagePainter {
         display.move(, , this.current.w, this.current.h)
 
         windowStyles := WS_CHILD | WS_VISIBLE | WS_EX_LAYERED
-        ImageShow(this.current.image, , [0, 0, this.current.w, this.current.h], windowStyles, , display.hwnd)
+        this.imageHwnd := ImageShow(this.current.image, , [0, 0, this.current.w, this.current.h], windowStyles, , display.hwnd)
+        if !this._imageWindowExists()
+            throw Error("Image overlay child window was not created")
 
         alpha := Max(0, Min(255, Round(this.opacity)))
         WinSetTransparent(alpha, this.window)
+        this.windowCreatedTick := this._tick()
     }
 
     _showAtPosition() {
