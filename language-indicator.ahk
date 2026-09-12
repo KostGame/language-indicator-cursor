@@ -6,15 +6,16 @@
 #include lib\utils\Merge.ahk
 
 class LanguageIndicator {
-    static Version := "0.79-kost.1"
+    static Version := "0.79-kost.2"
 
     __New(cfg?) {
         defaultCfg := {
             caret: {
-                enabled: false,
+                enabled: true,
                 inputCheckPeriod: 50,
                 markRepaintPeriod: 16,
-                markMargin: { x: 1, y: -1 }
+                markMargin: { x: 6, y: 0 },
+                markScale: 2
             },
             cursor: {
                 enabled: true,
@@ -39,7 +40,6 @@ class LanguageIndicator {
     }
 }
 
-; Application entry point
 global app := LanguageIndicator()
 app.Run()
 
