@@ -1,6 +1,5 @@
 ; Reliable native overlay renderer for the floating language flags.
 #requires AutoHotkey v2.0
-#include ImagePut.ahk
 
 class ImagePainter {
     __New() {
@@ -37,10 +36,6 @@ class ImagePainter {
         this._dropStaleWindow()
         imageChanged := this._hasImageChanged()
 
-        ; Rebuild instead of trying to repair stale layered content in-place.
-        ; The previous renderer used ImageShow to create another layered child
-        ; window. On Windows 11 that child could turn blank while both HWNDs
-        ; remained alive, leaving the white rectangles seen by the user.
         if (this.window != "" and (imageChanged or this._shouldHealthRefresh()))
             this.RemoveWindow()
 
@@ -173,14 +168,39 @@ class ImagePainter {
             return true
 
         try {
-            sourceW := ImageWidth(this.current.image)
-            sourceH := ImageHeight(this.current.image)
+            sourceW := 0, sourceH := 0
+            if !this._readBitmapDimensions(this.current.image, &sourceW, &sourceH)
+                return false
             this.current.w := Max(1, Round(sourceW * this.scale))
             this.current.h := Max(1, Round(sourceH * this.scale))
             return true
         } catch {
             this.Clear()
             return false
+        }
+    }
+
+    _readBitmapDimensions(path, &width, &height) {
+        imageType := 0
+        hBitmap := LoadPicture(path, "", &imageType)
+        if !hBitmap
+            return false
+
+        try {
+            ; PNG/JPEG/BMP files are loaded as HBITMAP. BITMAP is 32 bytes on
+            ; 64-bit Windows and 24 bytes on 32-bit Windows; width/height stay
+            ; at offsets 4 and 8 in both layouts.
+            bm := Buffer(A_PtrSize == 8 ? 32 : 24, 0)
+            if !DllCall("GetObject", "Ptr", hBitmap, "Int", bm.Size, "Ptr", bm, "Int")
+                return false
+            width := NumGet(bm, 4, "Int")
+            height := Abs(NumGet(bm, 8, "Int"))
+            return width > 0 and height > 0
+        } finally {
+            if imageType == 1
+                DllCall("DeleteObject", "Ptr", hBitmap)
+            else
+                DllCall("DestroyIcon", "Ptr", hBitmap)
         }
     }
 
@@ -202,9 +222,6 @@ class ImagePainter {
         if this.window != ""
             this.RemoveWindow()
 
-        ; Use a standard AutoHotkey Picture control rather than ImageShow's
-        ; extra layered child window. This keeps each flag to one tiny GUI plus
-        ; one native static control and gives us deterministic ownership.
         this.window := Gui("-Caption +AlwaysOnTop +ToolWindow -Border -DPIScale -Resize +E0x20")
         this.window.MarginX := 0
         this.window.MarginY := 0
