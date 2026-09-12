@@ -13,7 +13,7 @@ HideTrayIconOnExit(reason, code) {
 OnExit(HideTrayIconOnExit)
 
 class LanguageIndicator {
-    static Version := "0.79-kost.8-rc1"
+    static Version := "0.79-kost.8-rc2"
 
     __New(cfg?) {
         defaultCfg := {
