@@ -1,6 +1,6 @@
 # Language Indicator Cursor for Windows
 
-Fork of `yakunins/language-indicator`, tuned for a simple multi-monitor use case: keep the active RU/EN keyboard language close to where you are working, next to the mouse pointer and the active text caret.
+Fork of `yakunins/language-indicator`, tuned for a multi-monitor use case: keep the active RU/EN keyboard language close to where you are working, next to the mouse pointer and the active text caret.
 
 ## Fork behavior
 
@@ -11,7 +11,6 @@ Fork of `yakunins/language-indicator`, tuned for a simple multi-monitor use case
 - **Russian** layouts use `img/flags-png/ru.png`.
 - **English** layouts (US, UK, etc.) use `img/flags-png/us.png`.
 - Layout identity is resolved from the actual Windows `HKL/LANGID`, not from the order in which layouts were encountered after startup.
-- The mouse marker works over ordinary UI and is **not limited to the I-beam text cursor**.
 - The Windows system cursor is never replaced.
 - Marker overlays are non-activating and click-through.
 - Caps Lock does not change the language flag.
@@ -19,7 +18,34 @@ Fork of `yakunins/language-indicator`, tuned for a simple multi-monitor use case
 
 The source flag images are 8×6 pixels and are displayed at 2× size by default, so the visible marker is approximately 16×12 pixels.
 
-The mouse idle timeout is controlled by `cursor.mouseIdleHideAfter` in `language-indicator.ahk`. The default is `3000` milliseconds. Set it to `0` or a negative value to disable idle hiding.
+## Settings
+
+Open the tray icon and choose **Настройки...**.
+
+### Mouse indicator
+
+- **Показывать у мыши** on/off.
+- Opacity in percent.
+- Horizontal offset X in pixels.
+- Vertical offset Y in pixels.
+- Idle hide delay in seconds (`0` disables auto-hide).
+
+### Text-caret indicator
+
+- **Показывать в поле ввода** on/off.
+- Opacity in percent.
+- Horizontal offset X in pixels.
+- Vertical offset Y in pixels. Negative Y moves the flag upward, away from typed text.
+
+Defaults are intentionally different: the mouse flag is about 90% opaque, while the text-caret flag is about 70% opaque and raised above the text line so it does not cover the word being typed.
+
+Settings are stored per user in:
+
+```text
+%APPDATA%\LanguageIndicatorCursor\settings.ini
+```
+
+Saving settings automatically restarts the application so the new configuration takes effect.
 
 ## Installation
 
@@ -30,6 +56,12 @@ The mouse idle timeout is controlled by `cursor.mouseIdleHideAfter` in `language
 `install.cmd` creates a shortcut in the current user's Windows Startup folder so the indicator starts automatically after sign-in.
 
 To remove the startup shortcut, run `uninstall.cmd`.
+
+## Windows SmartScreen
+
+Development builds are currently **unsigned**, so Windows SmartScreen can show `Unknown publisher` / `Windows protected your PC` for a newly downloaded EXE. This is a publisher/reputation warning rather than a malware verdict from this application.
+
+For a polished public release, the executable should be Authenticode-signed with a trusted code-signing certificate. Rebuilding the EXE changes its hash, so unsigned development builds can trigger SmartScreen again even after an earlier build was allowed.
 
 ## Development
 
@@ -43,7 +75,7 @@ Run the AutoHotkey v2 console test suite:
 tests\RunTestsConsole.ahk
 ```
 
-The fork adds tests for direct Windows locale-to-flag mapping, including Russian and multiple English LANGIDs, cursor/caret flag configuration, and mouse-idle visibility behavior.
+The fork adds tests for direct Windows locale-to-flag mapping, including Russian and multiple English LANGIDs, cursor/caret flag configuration, opacity, position defaults, and mouse-idle visibility behavior.
 
 ### Compile
 
@@ -59,9 +91,10 @@ The compiler writes `language-indicator.exe` in the repository root.
 
 - `lib/CursorIndicator.ahk` follows the mouse, selects the RU/EN flag, and handles the idle timeout.
 - `lib/CaretIndicator.ahk` follows the active text caret and uses the same RU/EN mapping.
+- `lib/SettingsManager.ahk` loads, saves, and displays the per-user settings GUI.
 - `lib/detection/GetInputLocaleId.ahk` reads the keyboard layout of the active foreground window.
 - `lib/detection/GetLanguageFlagCode.ahk` maps Windows primary language IDs to `ru` / `us` flag assets.
-- `lib/image-utils/ImagePainter.ahk` paints transparent click-through overlays and scales the tiny flag assets.
+- `lib/image-utils/ImagePainter.ahk` paints transparent click-through overlays with configurable opacity.
 
 ## Limitations
 
