@@ -78,8 +78,6 @@ Development builds are currently **unsigned**, so Windows SmartScreen can show `
 
 For a polished public release, the executable should be Authenticode-signed with a trusted code-signing certificate. Rebuilding the EXE changes its hash, so unsigned development builds can trigger SmartScreen again even after an earlier build was allowed. The project intentionally does not attempt to suppress or bypass SmartScreen automatically.
 
-See also [Code signing policy](CODE_SIGNING.md) and [Privacy policy](PRIVACY.md).
-
 ## Releases
 
 After a stable change is merged to `master`, `.github/workflows/release.yml` runs the Windows tests, compiles the executable, packages the runnable files, reads `LanguageIndicator.Version`, and publishes a versioned GitHub Release. If that version already exists, the workflow leaves the existing release untouched.
