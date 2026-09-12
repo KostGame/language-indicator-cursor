@@ -38,7 +38,14 @@ class CaretIndicator extends IndicatorBase {
     }
 
     Check() {
-        flagCode := GetLanguageFlagCode(GetInputLocaleId())
+        localeId := GetInputLocaleId()
+
+        ; A focus transition can briefly leave no readable keyboard layout.
+        ; Keep the last valid marker and retry on the next tick.
+        if !localeId
+            return
+
+        flagCode := GetLanguageFlagCode(localeId)
         if (flagCode == "") {
             this.currentMarkObj := ""
             this.markPainter.HideWindow()
