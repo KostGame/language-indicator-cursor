@@ -5,6 +5,7 @@
 #include MarkResolver.test.ahk
 #include UseBase64Image.test.ahk
 #include UseCachedWhileIdle.test.ahk
+#include GetLanguageFlagCode.test.ahk
 #include InputState.test.ahk
 #include Indicators.test.ahk
 #include LanguageIndicator.test.ahk
@@ -28,6 +29,9 @@ RunAllTests() {
         T.Log("")
 
         UseCachedWhileIdleTests.Run()
+        T.Log("")
+
+        GetLanguageFlagCodeTests.Run()
         T.Log("")
 
         InputStateTests.Run()
