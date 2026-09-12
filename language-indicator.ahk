@@ -13,7 +13,7 @@ HideTrayIconOnExit(reason, code) {
 OnExit(HideTrayIconOnExit)
 
 class LanguageIndicator {
-    static Version := "0.79-kost.7-rc1"
+    static Version := "0.79-kost.7"
 
     __New(cfg?) {
         defaultCfg := {
@@ -53,7 +53,6 @@ class LanguageIndicator {
     }
 }
 
-; Application entry point
 global app := LanguageIndicator()
 app.Run()
 
