@@ -15,5 +15,5 @@ cfg := settings.Load()
 if (cfg.caret.HasOwnProp("enabled") and !cfg.caret.enabled)
     ExitApp()
 
-caretIndicator := CaretIndicator(merge(CaretIndicator.DefaultConfig, cfg.caret))
-caretIndicator.Run()
+caretWorkerIndicator := CaretIndicator(merge(CaretIndicator.DefaultConfig, cfg.caret))
+caretWorkerIndicator.Run()
