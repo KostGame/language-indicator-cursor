@@ -37,6 +37,23 @@ jobs:
             throw "AutoHotkey tests failed with exit code $($proc.ExitCode)"
           }
 
+      - name: Validate application entry points
+        shell: pwsh
+        run: |
+          foreach ($script in @('.\language-indicator.ahk', '.\caret-worker.ahk')) {
+            Write-Host "Validating $script"
+            $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk64 }}' -ArgumentList '/Validate', '/ErrorStdOut', $script -NoNewWindow -PassThru
+            try {
+              Wait-Process -Id $proc.Id -Timeout 20 -ErrorAction Stop
+            } catch {
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              throw "Validation timed out for $script"
+            }
+            if ($proc.ExitCode -ne 0) {
+              throw "Validation failed for $script with exit code $($proc.ExitCode)"
+            }
+          }
+
       - name: Compile executables
         timeout-minutes: 3
         shell: pwsh
