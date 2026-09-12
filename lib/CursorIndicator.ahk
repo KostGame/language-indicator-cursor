@@ -5,8 +5,8 @@
 ; - hides after configurable mouse inactivity and reappears on movement
 ; - never replaces the Windows system cursor
 ; - resolves RU/EN from the actual Windows LANGID, not discovery order
+; - survives transient helper-window/layout states from third-party switchers
 ; - ignores Caps Lock for flag selection
-; - unsupported languages hide the marker
 
 #requires AutoHotkey v2.0
 
@@ -47,19 +47,13 @@ class CursorIndicator extends IndicatorBase {
 
     Check() {
         localeId := GetInputLocaleId()
+        flagCode := LanguageFlagResolver.Resolve(localeId)
 
-        ; Focus can briefly disappear while Windows switches windows/controls.
-        ; Keep the last valid RU/EN marker for that tick instead of erasing it.
-        if !localeId
+        ; Before any supported RU/EN layout has ever been observed there is no
+        ; honest marker to show. Once a valid layout is known, resolver keeps it
+        ; through transient helper-window/layout states (e.g. word correction).
+        if (flagCode == "")
             return
-
-        flagCode := GetLanguageFlagCode(localeId)
-        if (flagCode == "") {
-            this.currentMarkObj := ""
-            this.markPainter.HideWindow()
-            this.markPainter.Clear()
-            return
-        }
 
         filePath := this.cfg.files.folder . flagCode . ".png"
         if !FileExist(filePath) {
