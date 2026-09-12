@@ -1,7 +1,7 @@
 #requires AutoHotkey v2.0
 
 #include core\IndicatorBase.ahk
-#include detection\GetCaretRect.ahk
+#include detection\GetCaretRectSafe.ahk
 #include detection\GetInputLocaleId.ahk
 #include detection\GetLanguageFlagCode.ahk
 #include detection\ProcessIntegrity.ahk
@@ -67,12 +67,11 @@ class CaretIndicator extends IndicatorBase {
     ComputePosition() {
         left := -1, top := -1, bottom := -1, right := -1
 
-        ; Do not run UIA/MSAA/remote-thread caret fallbacks against a window
-        ; above our integrity level. A blocked cross-integrity probe can starve
-        ; every AHK timer, making both caret and mouse indicators appear dead
-        ; until the process is restarted. The mouse indicator stays independent,
-        ; and caret probing resumes automatically after focus returns to a normal
-        ; window.
+        ; Do not query a foreground window above our integrity level. More
+        ; importantly, the safe detector used below never invokes the upstream
+        ; remote-thread caret fallback. That fallback can block the single AHK
+        ; runtime and starve both indicators when a target window gets into an
+        ; awkward accessibility/focus state.
         if IsActiveWindowUnsafeForCaretProbe() {
             return {
                 left: left,
@@ -86,7 +85,7 @@ class CaretIndicator extends IndicatorBase {
         }
 
         detectMethod := ""
-        GetCaretRect(&left, &top, &right, &bottom, &detectMethod)
+        GetCaretRectSafe(&left, &top, &right, &bottom, &detectMethod)
         w := right - left
         h := bottom - top
         return { left: left, top: top, right: right, bottom: bottom, w: w, h: h, detectMethod: detectMethod }
