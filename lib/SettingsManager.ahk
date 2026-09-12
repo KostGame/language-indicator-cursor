@@ -7,8 +7,8 @@ class SettingsManager {
 
     __New(defaultCfg) {
         this.defaultCfg := defaultCfg
-        this.settingsDir := A_AppData . "\" . SettingsManager.AppFolder
-        this.path := this.settingsDir . "\settings.ini"
+        this.settingsDir := A_AppData . "\\" . SettingsManager.AppFolder
+        this.path := this.settingsDir . "\\settings.ini"
     }
 
     Load() {
@@ -54,11 +54,13 @@ class SettingsManager {
     }
 
     BuildIndicatorMenu(section, cfg, includeIdle, enabledLabel) {
-        menu := Menu()
+        ; AutoHotkey v2 identifiers are case-insensitive. Do not name this local
+        ; variable `menu`, because that shadows the built-in Menu class on RHS.
+        indicatorMenu := Menu()
 
-        menu.Add(enabledLabel, ObjBindMethod(this, "SetBoolAndReload", section, "Enabled", !cfg.enabled))
+        indicatorMenu.Add(enabledLabel, ObjBindMethod(this, "SetBoolAndReload", section, "Enabled", !cfg.enabled))
         if cfg.enabled
-            menu.Check(enabledLabel)
+            indicatorMenu.Check(enabledLabel)
 
         opacityMenu := Menu()
         currentOpacity := SettingsManager.AlphaToPercent(cfg.opacity)
@@ -68,7 +70,7 @@ class SettingsManager {
             if percent == currentOpacity
                 opacityMenu.Check(label)
         }
-        menu.Add("Прозрачность: " . currentOpacity . "%", opacityMenu)
+        indicatorMenu.Add("Прозрачность: " . currentOpacity . "%", opacityMenu)
 
         positionMenu := Menu()
         positionMenu.Add("↑ Выше на 2 px", ObjBindMethod(this, "AdjustAndReload", section, "OffsetY", cfg.markMargin.y, -2, -200, 200))
@@ -80,7 +82,7 @@ class SettingsManager {
             positionMenu.Add("Сбросить положение", ObjBindMethod(this, "SetPositionAndReload", section, 18, 12))
         else
             positionMenu.Add("Сбросить положение", ObjBindMethod(this, "SetPositionAndReload", section, 6, -12))
-        menu.Add("Положение: X " . cfg.markMargin.x . ", Y " . cfg.markMargin.y, positionMenu)
+        indicatorMenu.Add("Положение: X " . cfg.markMargin.x . ", Y " . cfg.markMargin.y, positionMenu)
 
         if includeIdle {
             idleMenu := Menu()
@@ -92,10 +94,10 @@ class SettingsManager {
                 if seconds == currentIdle
                     idleMenu.Check(label)
             }
-            menu.Add("Скрывать через: " . (currentIdle == 0 ? "никогда" : currentIdle . " сек"), idleMenu)
+            indicatorMenu.Add("Скрывать через: " . (currentIdle == 0 ? "никогда" : currentIdle . " сек"), idleMenu)
         }
 
-        return menu
+        return indicatorMenu
     }
 
     SetBoolAndReload(section, key, value, *) {
