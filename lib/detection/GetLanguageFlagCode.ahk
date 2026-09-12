@@ -19,3 +19,26 @@ GetLanguageFlagCode(inputLocaleId) {
             return ""
     }
 }
+
+; Some layout switchers briefly move focus to a helper window/thread while they
+; rewrite the previous word. During that interval GetKeyboardLayout() can return
+; 0 or a layout that is not one of our supported RU/EN layouts. Treat that as a
+; transient observation and keep the last known valid RU/EN flag instead of
+; making both indicators disappear.
+class LanguageFlagResolver {
+    static lastValidCode := ""
+
+    static Resolve(inputLocaleId) {
+        code := GetLanguageFlagCode(inputLocaleId)
+        if (code != "") {
+            this.lastValidCode := code
+            return code
+        }
+
+        return this.lastValidCode
+    }
+
+    static Reset() {
+        this.lastValidCode := ""
+    }
+}
