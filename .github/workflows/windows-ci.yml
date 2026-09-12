@@ -29,21 +29,21 @@ jobs:
       - name: Run tests
         shell: pwsh
         run: |
-          & '${{ steps.ahk.outputs.ahk64 }}' /ErrorStdOut '.\tests\RunTestsConsole.ahk'
-          $code = $LASTEXITCODE
+          $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk64 }}' -ArgumentList '/ErrorStdOut', '.\tests\RunTestsConsole.ahk' -NoNewWindow -Wait -PassThru
           if (Test-Path '.\tests\test-results.txt') {
             Get-Content '.\tests\test-results.txt'
           }
-          if ($code -ne 0) {
-            throw "AutoHotkey tests failed with exit code $code"
+          if ($proc.ExitCode -ne 0) {
+            throw "AutoHotkey tests failed with exit code $($proc.ExitCode)"
           }
 
       - name: Compile executable
         shell: pwsh
         run: |
-          & '${{ steps.ahk.outputs.ahk2Exe }}' /in '.\language-indicator.ahk' /out '.\language-indicator.exe' /base '${{ steps.ahk.outputs.ahk64 }}' /icon '.\img\app-icon.ico'
-          if ($LASTEXITCODE -ne 0 -or !(Test-Path '.\language-indicator.exe')) {
-            throw 'Ahk2Exe compilation failed'
+          $args = @('/in', '.\language-indicator.ahk', '/out', '.\language-indicator.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico')
+          $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk2Exe }}' -ArgumentList $args -NoNewWindow -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or !(Test-Path '.\language-indicator.exe')) {
+            throw "Ahk2Exe compilation failed with exit code $($proc.ExitCode)"
           }
           Get-Item '.\language-indicator.exe' | Select-Object Name, Length, LastWriteTime
 
