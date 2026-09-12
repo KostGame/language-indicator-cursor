@@ -102,7 +102,7 @@ TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
         NumPut("uchar", 0x71, iid, 15)
 
         acc := ComValue(9, 0)
-        hr := DllCall("oleacc\\AccessibleObjectFromWindow"
+        hr := DllCall("oleacc\AccessibleObjectFromWindow"
             , "ptr", hwnd
             , "uint", idObject
             , "ptr", iid
@@ -204,6 +204,6 @@ TryUiaCaret(&left, &top, &right, &bottom) {
 
 GuidBuffer(text) {
     buf := Buffer(16, 0)
-    DllCall("ole32\\CLSIDFromString", "str", text, "ptr", buf, "hresult")
+    DllCall("ole32\CLSIDFromString", "str", text, "ptr", buf, "hresult")
     return buf
 }
