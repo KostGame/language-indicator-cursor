@@ -13,13 +13,13 @@ HideTrayIconOnExit(reason, code) {
 OnExit(HideTrayIconOnExit)
 
 class LanguageIndicator {
-    static Version := "0.79-kost.6"
+    static Version := "0.79-kost.7-rc1"
 
     __New(cfg?) {
         defaultCfg := {
             caret: {
                 enabled: true,
-                inputCheckPeriod: 50,
+                inputCheckPeriod: 20,
                 markRepaintPeriod: 16,
                 markMargin: { x: 6, y: -12 },
                 markScale: 2,
@@ -27,7 +27,7 @@ class LanguageIndicator {
             },
             cursor: {
                 enabled: true,
-                inputCheckPeriod: 50,
+                inputCheckPeriod: 20,
                 markRepaintPeriod: 6,
                 markMargin: { x: 18, y: 12, useCursorSize: false },
                 markScale: 2,
