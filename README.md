@@ -1,50 +1,70 @@
-# Language Indicator for Windows
+# Language Indicator Cursor for Windows
 
-<img src="img/how-it-work.gif" width="507" alt="Windows keyboard language indicator showing current input language near text caret and mouse cursor" />
+Fork of `yakunins/language-indicator`, tuned for a simple multi-monitor use case: **always show the active RU/EN keyboard language next to the mouse pointer**.
 
-## Per-Language Styling of Text Caret and Mouse Cursor
+## Fork behavior
 
-Keeps track of your current keyboard language/layout and changes [caret](https://en.wikipedia.org/wiki/Caret_navigation) and [text selection mouse cursor](<https://en.wikipedia.org/wiki/Cursor_(user_interface)#I-beam_pointer>).
+- Windows 11/10, AutoHotkey v2.
+- A small flag follows the mouse pointer on any monitor.
+- **Russian** layouts use `img/flags-png/ru.png`.
+- **English** layouts (US, UK, etc.) use `img/flags-png/us.png`.
+- Layout identity is resolved from the actual Windows `HKL/LANGID`, not from the order in which layouts were encountered after startup.
+- The marker is visible over ordinary UI and is **not limited to the I-beam text cursor**.
+- The Windows system cursor is never replaced.
+- The marker overlay is non-activating and click-through.
+- Caps Lock does not change the language flag.
+- Other languages currently hide the marker.
+- The original text-caret indicator remains in the codebase but is disabled by default in this fork.
 
-It works in most envs, including consoles and Universal Windows Apps, aka Metro apps.
-Exceptions are Adobe Indesign and some .NET MAUI apps.
-
-Built with [AutoHotkey v2](https://www.autohotkey.com/v2/). Executable compiled with [Ahk2Exe](https://github.com/AutoHotkey/Ahk2Exe).
+The source flag images are 8×6 pixels and are displayed at 2× size by default, so the visible marker is approximately 16×12 pixels.
 
 ## Installation
 
-1. Download and unzip the [latest release](../../releases/latest)
-2. Run `install.cmd` to create a shortcut in your startup folder
+1. Download/unzip a build of this fork.
+2. Run `install.cmd`.
+3. Start `language-indicator.exe` once if it is not already running.
 
-The release includes `cursors` and `carets` folders for lag-free cursor replacement. Standalone version (without `/cursors/`) paints a marker near the mouse cursor <ins>with lag</ins>. See [Customization](#customization) for details.
+`install.cmd` creates a shortcut in the current user's Windows Startup folder so the indicator starts automatically after sign-in.
 
-## Customization
+To remove the startup shortcut, run `uninstall.cmd`.
 
-1. Download or create [`carets`](./carets) or [`cursors`](./cursors) folders (since `cursors` folder exist, embedded images won't be used, see [`./lib/image-utils/UseBase64Image.ahk`](./lib/image-utils/UseBase64Image.ahk))
-2. Remove unwanted or add your own carets or mouse cursors within [`carets`](./carets) or [`cursors`](./cursors) folders
-3. Use the following naming convention:
+## Development
 
-| Input                  | Mouse Cursor               | Text Caret Mark           |
-| :--------------------- | :------------------------- | :------------------------ |
-| Language 2             | `./cursors/2.cur`          | `./carets/2.png`          |
-| Language 1 + Caps Lock | `./cursors/1-capslock.cur` | `./carets/1-capslock.png` |
-| Language 2 + Caps Lock | `./cursors/2-capslock.png` | `./carets/2-capslock.png` |
+The application entry point is `language-indicator.ahk`.
 
-## Country Flags as Indicators
+### Tests
 
-<img src="img/flag-as-language-indicator.gif" width="510" alt="country flag as keyboard language indicator for Windows" />
+Run the AutoHotkey v2 console test suite:
 
-1. Create a `carets` or `cursors` folder
-2. Copy a flag from [`img/flags-png/`](./img/flags-png/) (e.g., `es.png`)
-3. Rename it to match your language number (e.g., `2.png`)
+```text
+tests\RunTestsConsole.ahk
+```
 
-## Supported Formats
+The fork adds tests for direct Windows locale-to-flag mapping, including Russian and multiple English LANGIDs.
 
-| Folder    | Formats       | Notes                                  |
-| --------- | ------------- | -------------------------------------- |
-| `carets`  | PNG, GIF      | Floating mark next to text caret       |
-| `cursors` | CUR, ANI, ICO | Replaces system cursor (no lag)        |
-| `cursors` | PNG           | Floating mark near cursor (slight lag) |
+### Compile
 
-Enjoy!  
-A donut, [maybe](https://www.paypal.com/donate/?business=KXM47EKBXFV4S&no_recurring=0&item_name=funding+of+github.com%2Fyakunins&currency_code=USD)? 🍩
+With AutoHotkey v2 and Ahk2Exe installed in the standard location:
+
+```text
+tools\compile.cmd
+```
+
+The compiler writes `language-indicator.exe` in the repository root.
+
+## Relevant implementation
+
+- `lib/CursorIndicator.ahk` follows the mouse and selects the RU/EN flag.
+- `lib/detection/GetInputLocaleId.ahk` reads the keyboard layout of the active foreground window.
+- `lib/detection/GetLanguageFlagCode.ahk` maps Windows primary language IDs to `ru` / `us` flag assets.
+- `lib/image-utils/ImagePainter.ahk` paints the transparent click-through overlay and scales the tiny flag assets.
+
+## Upstream
+
+Original project: `yakunins/language-indicator`.
+
+The upstream project supports per-language styling of both the text caret and mouse I-beam cursor, including `.cur`, `.ani`, `.ico`, and `.png` customization. This fork intentionally narrows the default behavior to an always-near-pointer RU/EN indicator for multi-monitor work.
+
+## License
+
+MIT, as in the upstream project.
