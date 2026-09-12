@@ -73,6 +73,10 @@ Development builds are currently **unsigned**, so Windows SmartScreen can show `
 
 For a polished public release, the executable should be Authenticode-signed with a trusted code-signing certificate. Rebuilding the EXE changes its hash, so unsigned development builds can trigger SmartScreen again even after an earlier build was allowed. The project intentionally does not attempt to suppress or bypass SmartScreen automatically.
 
+## Releases
+
+After a stable change is merged to `master`, `.github/workflows/release.yml` runs the Windows tests, compiles the executable, packages the runnable files, reads `LanguageIndicator.Version`, and publishes a versioned GitHub Release such as `v0.79-kost.5`. If that version already exists, the workflow leaves the existing release untouched.
+
 ## Development
 
 The application entry point is `language-indicator.ahk`.
