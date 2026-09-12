@@ -1,11 +1,11 @@
 /*
 Safe caret-position detector for the reliability fork.
 
-This intentionally uses only in-process Windows accessibility/query APIs and
-never injects a remote thread into the foreground application. The upstream
-GetCaretRect fallback can execute code inside the target process and then wait
-for the remote thread. That is useful for a few difficult apps, but a stalled
-probe can freeze all AutoHotkey timers in this single-process indicator.
+This intentionally avoids every fallback that can wait on another process or
+on a potentially unresponsive accessibility provider. The goal is fail-closed
+reliability: if a difficult application cannot expose its caret through the
+cheap Windows APIs below, hide only the caret flag and keep the indicator
+runtime alive.
 */
 #requires AutoHotkey v2.0
 
@@ -31,15 +31,11 @@ GetCaretRectSafe(&left?, &top?, &right?, &bottom?, &detectMethod?) {
         return true
     }
 
-    ; MSAA is cheap and works well for classic controls and Chromium-based apps.
+    ; MSAA is the only cross-window accessibility fallback kept in rc3. We do
+    ; not invoke UI Automation or the upstream remote-thread hook here because
+    ; either can potentially wait on a provider/target and starve all AHK timers.
     if TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
         detectMethod := "safe:MSAA (className:" . className . ")"
-        return true
-    }
-
-    ; UI Automation covers modern controls/Terminal without remote injection.
-    if TryUiaCaret(&left, &top, &right, &bottom) {
-        detectMethod := "safe:UIA (className:" . className . ")"
         return true
     }
 
@@ -137,73 +133,4 @@ TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
     } finally {
         DllCall("FreeLibrary", "ptr", hOleacc)
     }
-}
-
-TryUiaCaret(&left, &top, &right, &bottom) {
-    try {
-        uia := ComObject("{E22AD333-B25F-460C-83D0-0581107395C9}", "{30CBE57D-D9D0-452A-AB13-7AC5AC4825EE}")
-        ComCall(20, uia, "ptr*", cacheRequest := ComValue(13, 0))
-        if !cacheRequest.Ptr
-            return false
-
-        ComCall(4, cacheRequest, "ptr", 10014) ; UIA_TextPatternId
-        ComCall(4, cacheRequest, "ptr", 10024) ; UIA_TextPattern2Id
-        ComCall(12, uia, "ptr", cacheRequest, "ptr*", focused := ComValue(13, 0))
-        if !focused.Ptr
-            return false
-
-        range := ComValue(13, 0)
-        iidText2 := GuidBuffer("{506A921A-FCC9-409F-B23B-37EB74106872}")
-        ComCall(15, focused, "int", 10024, "ptr", iidText2, "ptr*", text2 := ComValue(13, 0))
-        if text2.Ptr {
-            ComCall(10, text2, "int*", &isActive := 0, "ptr*", range)
-        }
-
-        if !range.Ptr {
-            iidText := GuidBuffer("{32EBA289-3583-42C9-9C59-3B6D9A1E9B6A}")
-            ComCall(15, focused, "int", 10014, "ptr", iidText, "ptr*", text := ComValue(13, 0))
-            if !text.Ptr
-                return false
-            ComCall(5, text, "ptr*", ranges := ComValue(13, 0))
-            if !ranges.Ptr
-                return false
-            ComCall(3, ranges, "int*", &len := 0)
-            if len < 1
-                return false
-            ComCall(4, ranges, "int", len - 1, "ptr*", range)
-            if !range.Ptr
-                return false
-            ComCall(15, range, "int", 0, "ptr", range, "int", 1)
-        }
-
-        psa := 0
-        ComCall(6, range, "int", 0) ; TextUnit_Character
-        ComCall(10, range, "ptr*", &psa)
-        if !psa
-            return false
-
-        rects := ComValue(0x2005, psa, 1) ; SafeArray<double>
-        if rects.MaxIndex() < 3
-            return false
-
-        left := Round(rects[0])
-        top := Round(rects[1])
-        width := Round(rects[2])
-        height := Round(rects[3])
-        if width < 1
-            width := 1
-        if height < 1
-            height := 1
-        right := left + width
-        bottom := top + height
-        return true
-    } catch {
-        return false
-    }
-}
-
-GuidBuffer(text) {
-    buf := Buffer(16, 0)
-    DllCall("ole32\CLSIDFromString", "str", text, "ptr", buf, "hresult")
-    return buf
 }
