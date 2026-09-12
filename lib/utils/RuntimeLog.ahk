@@ -6,7 +6,7 @@ RuntimeLogError(context, err) {
     global runtimeLogLast
 
     try {
-        message := err is Error ? err.Message : String(err)
+        message := err is Error ? err.Message : (err . "")
         key := context . "|" . message
         now := A_TickCount
 
