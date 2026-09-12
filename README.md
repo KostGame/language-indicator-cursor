@@ -50,6 +50,8 @@ Each tray change is persisted and the indicator reloads automatically so the new
 
 Foreground focus changes can briefly make Windows input-locale or caret APIs unavailable. The fork contains timer exception containment, transient-locale recovery, stale-overlay recreation, and last-valid RU/EN retention so one bad focus transition does not permanently stop updates.
 
+Input-locale sampling uses a 20 ms cadence in the current stabilization candidate. This mirrors the effective sampling cadence of the diagnostic build that remained stable during Caramba Switcher Double Shift last-word correction, but without shipping the diagnostic tracer itself.
+
 If a runtime error occurs, a throttled diagnostic log is written to:
 
 ```text
@@ -58,7 +60,7 @@ If a runtime error occurs, a throttled diagnostic log is written to:
 
 The log rotates at roughly 64 KiB to avoid unbounded growth. If `runtime.log` is absent, no contained runtime exception has been recorded in that run.
 
-A runtime-disappearance regression found during prototype testing is tracked in issue #3, including Caramba Switcher last-word conversion. Stable merge/release remains gated on a final Windows smoke/soak test.
+A runtime-disappearance regression found during prototype testing is tracked in issue #3. Stable merge/release remains gated on a clean non-diagnostic Windows smoke test with repeated Caramba Switcher Double Shift last-word correction.
 
 ## Installation
 
@@ -75,6 +77,8 @@ To remove the startup shortcut, run `uninstall.cmd`.
 Development builds are currently **unsigned**, so Windows SmartScreen can show `Unknown publisher` / `Windows protected your PC` for a newly downloaded EXE. This is a publisher/reputation warning, not a malware verdict from this application.
 
 For a polished public release, the executable should be Authenticode-signed with a trusted code-signing certificate. Rebuilding the EXE changes its hash, so unsigned development builds can trigger SmartScreen again even after an earlier build was allowed. The project intentionally does not attempt to suppress or bypass SmartScreen automatically.
+
+See also [Code signing policy](CODE_SIGNING.md) and [Privacy policy](PRIVACY.md).
 
 ## Releases
 
@@ -115,6 +119,8 @@ The compiler writes `language-indicator.exe` in the repository root.
 ## Limitations
 
 Caret position detection depends on what the target application exposes to Windows. Standard Win32 controls and many modern applications are supported by the upstream detection stack, but some custom-rendered editors may not expose a usable caret position. In that case the mouse flag continues to work normally.
+
+A non-elevated indicator may also be unable to inspect caret/UI-accessibility data from an elevated Administrator application because of Windows integrity-level isolation. That case is tracked separately and should be solved without weakening UAC.
 
 ## Upstream
 
