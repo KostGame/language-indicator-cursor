@@ -26,6 +26,7 @@ class CursorIndicator extends IndicatorBase {
         },
         markMargin: { x: 18, y: 12, useCursorSize: false },
         markScale: 2,
+        opacity: 230,
         mousePositionPrediction: 0.5,
         mouseIdleHideAfter: 3000,
         inputCheckPeriod: 50,
@@ -38,6 +39,7 @@ class CursorIndicator extends IndicatorBase {
         super.__New(cfg)
 
         this.markPainter.scale := cfg.markScale
+        this.markPainter.opacity := cfg.opacity
         this.lastMouseX := ""
         this.lastMouseY := ""
         this.lastMouseMoveTick := A_TickCount
