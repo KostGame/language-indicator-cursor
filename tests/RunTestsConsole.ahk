@@ -9,6 +9,7 @@
 #include InputState.test.ahk
 #include Indicators.test.ahk
 #include LanguageIndicator.test.ahk
+#include SettingsManager.test.ahk
 
 ; Run all tests and output to file
 RunAllTests() {
@@ -45,6 +46,9 @@ RunAllTests() {
         T.Log("")
 
         LanguageIndicatorTests.Run()
+        T.Log("")
+
+        SettingsManagerTests.Run()
         T.Log("")
 
         ; Show summary
