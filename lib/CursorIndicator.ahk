@@ -47,8 +47,13 @@ class CursorIndicator extends IndicatorBase {
 
     Check() {
         localeId := GetInputLocaleId()
-        flagCode := GetLanguageFlagCode(localeId)
 
+        ; Focus can briefly disappear while Windows switches windows/controls.
+        ; Keep the last valid RU/EN marker for that tick instead of erasing it.
+        if !localeId
+            return
+
+        flagCode := GetLanguageFlagCode(localeId)
         if (flagCode == "") {
             this.currentMarkObj := ""
             this.markPainter.HideWindow()
@@ -105,7 +110,6 @@ class CursorIndicator extends IndicatorBase {
         pos := this.GetPosition()
         if (pos.x == -1 or pos.y == -1) {
             this.markPainter.HideWindow()
-            this.markPainter.Clear()
             return
         }
 
