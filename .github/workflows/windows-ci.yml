@@ -47,7 +47,7 @@ jobs:
           )
           foreach ($script in $scripts) {
             Write-Host "VALIDATE_START=$script"
-            $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk64 }}' -ArgumentList '/Validate', '/ErrorStdOut', $script -NoNewWindow -PassThru
+            $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk64 }}' -ArgumentList '/ErrorStdOut', '/Validate', $script -NoNewWindow -PassThru
             try { Wait-Process -Id $proc.Id -Timeout 10 -ErrorAction Stop }
             catch {
               Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
