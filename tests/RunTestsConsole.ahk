@@ -7,6 +7,7 @@
 #include UseCachedWhileIdle.test.ahk
 #include GetLanguageFlagCode.test.ahk
 #include InputState.test.ahk
+#include ProcessIntegrity.test.ahk
 #include Indicators.test.ahk
 #include LanguageIndicator.test.ahk
 #include SettingsManager.test.ahk
@@ -36,6 +37,9 @@ RunAllTests() {
         T.Log("")
 
         InputStateTests.Run()
+        T.Log("")
+
+        ProcessIntegrityTests.Run()
         T.Log("")
 
         ; Run integration tests
