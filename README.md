@@ -37,7 +37,7 @@ Open the tray icon and choose **Настройки...**.
 - Horizontal offset X in pixels.
 - Vertical offset Y in pixels. Negative Y moves the flag upward, away from typed text.
 
-Defaults are intentionally different: the mouse flag is about 90% opaque, while the text-caret flag is about 70% opaque and raised above the text line so it does not cover the word being typed.
+Defaults are intentionally different: the mouse flag is about 90% opaque, while the text-caret flag is about 70% opaque and raised above the text line so it does not cover the word being typed. All of these values can be changed from the tray settings window.
 
 Settings are stored per user in:
 
