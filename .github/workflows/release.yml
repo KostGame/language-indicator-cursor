@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install AutoHotkey v2 and Ahk2Exe
+        id: ahk
+        uses: holy-tao/install-autohotkey@37e2ba93564d85ce51426c4e77efcbda81b65c24
+        with:
+          version: latest
+          compiler: latest
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk64 }}' -ArgumentList '/ErrorStdOut', '.\tests\RunTestsConsole.ahk' -NoNewWindow -Wait -PassThru
+          if (Test-Path '.\tests\test-results.txt') {
+            Get-Content '.\tests\test-results.txt'
+          }
+          if ($proc.ExitCode -ne 0) {
+            throw "AutoHotkey tests failed with exit code $($proc.ExitCode)"
+          }
+
+      - name: Compile executable
+        shell: pwsh
+        run: |
+          $args = @('/in', '.\language-indicator.ahk', '/out', '.\language-indicator.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico')
+          $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk2Exe }}' -ArgumentList $args -NoNewWindow -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or !(Test-Path '.\language-indicator.exe')) {
+            throw "Ahk2Exe compilation failed with exit code $($proc.ExitCode)"
+          }
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $source = Get-Content '.\language-indicator.ahk' -Raw
+          $match = [regex]::Match($source, 'static Version := "([^"]+)"')
+          if (!$match.Success) {
+            throw 'Could not resolve LanguageIndicator.Version'
+          }
+          $version = $match.Groups[1].Value
+          $tag = "v$version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Package release
+        id: package
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          $dir = Join-Path $PWD 'release-package'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          Copy-Item '.\language-indicator.exe' $dir
+          Copy-Item '.\install.cmd' $dir
+          Copy-Item '.\uninstall.cmd' $dir
+          Copy-Item '.\README.md' $dir
+          New-Item -ItemType Directory -Force -Path (Join-Path $dir 'img\flags-png') | Out-Null
+          Copy-Item '.\img\flags-png\ru.png' (Join-Path $dir 'img\flags-png\ru.png')
+          Copy-Item '.\img\flags-png\us.png' (Join-Path $dir 'img\flags-png\us.png')
+          $zip = "language-indicator-cursor-$tag-windows.zip"
+          Compress-Archive -Path (Join-Path $dir '*') -DestinationPath $zip -Force
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          $zip = '${{ steps.package.outputs.zip }}'
+          gh release view $tag --repo '${{ github.repository }}' *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists; nothing to do."
+            exit 0
+          }
+          gh release create $tag $zip --repo '${{ github.repository }}' --target '${{ github.sha }}' --title "Language Indicator Cursor $tag" --generate-notes
