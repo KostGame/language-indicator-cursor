@@ -39,19 +39,13 @@ class CaretIndicator extends IndicatorBase {
 
     Check() {
         localeId := GetInputLocaleId()
+        flagCode := LanguageFlagResolver.Resolve(localeId)
 
-        ; A focus transition can briefly leave no readable keyboard layout.
-        ; Keep the last valid marker and retry on the next tick.
-        if !localeId
+        ; A third-party switcher can briefly expose its own helper window/layout
+        ; while rewriting the last word. Keep the last valid RU/EN flag instead
+        ; of clearing both overlays during that transient state.
+        if (flagCode == "")
             return
-
-        flagCode := GetLanguageFlagCode(localeId)
-        if (flagCode == "") {
-            this.currentMarkObj := ""
-            this.markPainter.HideWindow()
-            this.markPainter.Clear()
-            return
-        }
 
         filePath := this.cfg.files.folder . flagCode . ".png"
         if !FileExist(filePath) {
