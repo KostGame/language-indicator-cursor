@@ -1,0 +1,6 @@
+# Signing-sensitive files
+/CODE_SIGNING.md @KostGame
+/PRIVACY.md @KostGame
+/.github/CODEOWNERS @KostGame
+/.github/workflows/release.yml @KostGame
+/.signpath/ @KostGame
