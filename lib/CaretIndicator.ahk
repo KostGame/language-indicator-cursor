@@ -1,26 +1,9 @@
-; Shows language indicator next to text caret in active text fields
-
-/*
-How it works:
-1. Check() runs every inputCheckPeriod (default 100ms)
-   - Updates input state (keyboard locale and capslock)
-   - Decides which mark (embedded or file) should be shown
-   - Stores the chosen mark on this.currentMarkObj and paints once
-2. Repaint() runs every markRepaintPeriod (default 100ms)
-   - Re-paints the current mark at the latest caret position
-   - ImagePainter.Paint() short-circuits when position + image are unchanged,
-     so idle ticks are cheap (no GDI work)
-3. MarkResolver returns appropriate mark name based on locale/capslock
-4. GetCaretRect() detects caret position using multiple methods:
-   - GUI thread info, UIA, WPF caret, MSAA, or shell hook injection
-5. If locale is default (first) and capslock is off, no indicator is shown
-*/
-
 #requires AutoHotkey v2.0
 
 #include core\IndicatorBase.ahk
-#include core\MarkResolver.ahk
 #include detection\GetCaretRect.ahk
+#include detection\GetInputLocaleId.ahk
+#include detection\GetLanguageFlagCode.ahk
 #include utils\DebugCaretPosition.ahk
 #include utils\UseCachedWhileIdle.ahk
 
@@ -29,36 +12,47 @@ class CaretIndicator extends IndicatorBase {
         debug: false,
         debugCaretPosition: false,
         files: {
-            capslockSuffix: "-capslock",
+            capslockSuffix: "",
             folderExistCheckPeriod: 1000,
-            folder: A_ScriptDir . "\carets\",
-            extensions: [".png", ".gif"]
+            folder: A_ScriptDir . "\img\flags-png\",
+            extensions: [".png"]
         },
-        markMargin: { x: 1, y: -1 },
-        inputCheckPeriod: 100,    ; polling rate of locale + capslock
-        markRepaintPeriod: 16,    ; 16ms ≈ 60Hz, caret mark follows the caret
-        positionCacheTtl: 1000,    ; max age (ms) of cached GetCaretRect result when user is idle
+        markMargin: { x: 6, y: 0 },
+        markScale: 2,
+        inputCheckPeriod: 50,
+        markRepaintPeriod: 16,
+        positionCacheTtl: 1000,
     }
 
     __New(cfg?) {
         if !IsSet(cfg)
             cfg := CaretIndicator.DefaultConfig
         super.__New(cfg)
+        this.markPainter.scale := cfg.markScale
         this.getCachedPosition := UseCachedWhileIdle(
             () => this.ComputePosition(),
             this.cfg.positionCacheTtl
         )
     }
 
-    UseMarkFile() {
-        markFile := MarkResolver.GetMarkFile(this.cfg.files, this.inputState.locale, this.inputState.capslock)
-        if (markFile == "") {
+    Check() {
+        flagCode := GetLanguageFlagCode(GetInputLocaleId())
+        if (flagCode == "") {
             this.currentMarkObj := ""
-            this.markPainter.RemoveWindow()
+            this.markPainter.HideWindow()
+            this.markPainter.Clear()
             return
         }
-        SplitPath(markFile, &markName)
-        this.currentMarkObj := { name: markName, image: markFile }
+
+        filePath := this.cfg.files.folder . flagCode . ".png"
+        if !FileExist(filePath) {
+            this.currentMarkObj := ""
+            this.markPainter.HideWindow()
+            this.markPainter.Clear()
+            return
+        }
+
+        this.currentMarkObj := { name: flagCode, image: filePath }
         this.PaintMark(this.currentMarkObj)
     }
 
@@ -77,13 +71,12 @@ class CaretIndicator extends IndicatorBase {
 
     PaintMark(markObj) {
         if (!markObj.image or 2 > StrLen(markObj.image)) {
-            this.markPainter.RemoveWindow()
+            this.markPainter.HideWindow()
             this.markPainter.Clear()
             return
         }
 
         pos := this.GetPosition()
-
         if this.cfg.debugCaretPosition
             DebugCaretPosition(pos.left, pos.top, pos.right, pos.bottom, pos.detectMethod)
 
@@ -95,9 +88,8 @@ class CaretIndicator extends IndicatorBase {
         this.markPainter.StorePrev()
         this.markPainter.current.name := markObj.name
         this.markPainter.current.image := markObj.image
-        this.markPainter.current.x := pos.left
-        this.markPainter.current.y := pos.top
-
+        this.markPainter.current.x := pos.right
+        this.markPainter.current.y := pos.top + Floor(pos.h / 2)
         this.markPainter.Paint()
     }
 }
