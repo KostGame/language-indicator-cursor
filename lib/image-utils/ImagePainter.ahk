@@ -9,6 +9,7 @@ class ImagePainter {
         this.windowVisible := false
         this.margin := { x: 0, y: 0 }
         this.scale := 1
+        this.opacity := 255
         this.current := { image: "", name: "", x: "", y: "", w: 0, h: 0 }
         this.prev := { image: "", name: "", x: "", y: "", w: 0, h: 0 }
     }
@@ -140,6 +141,7 @@ class ImagePainter {
         this.window.Title := ""
         this.window.BackColor := this.bgColor
         WinSetTransColor(this.bgColor, this.window)
+        WinSetTransparent(Max(0, Min(255, Round(this.opacity))), this.window)
 
         ; Create dummy control for ImagePut
         display := this.window.Add("Text", "xm+0")
