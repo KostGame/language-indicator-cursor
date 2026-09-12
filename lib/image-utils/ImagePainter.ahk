@@ -160,22 +160,24 @@ class ImagePainter {
         sizeConstraints := " +MinSize" this.current.w "x" this.current.h
             . " +MaxSize" this.current.w "x" this.current.h
 
-        ; Transparent, always-on-top, click-through overlay with no activation.
-        ; Use one TransColor call with alpha so the color key and opacity share
-        ; the same layered-window state instead of competing WinSet operations.
+        ; The flag image fills the whole overlay window, so a color-key is not
+        ; needed. Apply one uniform alpha to the complete overlay instead. This
+        ; avoids the mouse-overlay edge case where TransColor + alpha could make
+        ; a 100% setting vanish on some Windows 11 compositions.
         this.window := Gui("+LastFound -Caption +AlwaysOnTop +ToolWindow -Border -DPIScale -Resize +E0x20" sizeConstraints)
         this.window.MarginX := 0
         this.window.MarginY := 0
         this.window.Title := ""
         this.window.BackColor := this.bgColor
-        alpha := Max(0, Min(255, Round(this.opacity)))
-        WinSetTransColor(this.bgColor . " " . alpha, this.window)
 
         display := this.window.Add("Text", "xm+0")
         display.move(, , this.current.w, this.current.h)
 
         windowStyles := WS_CHILD | WS_VISIBLE | WS_EX_LAYERED
         ImageShow(this.current.image, , [0, 0, this.current.w, this.current.h], windowStyles, , display.hwnd)
+
+        alpha := Max(0, Min(255, Round(this.opacity)))
+        WinSetTransparent(alpha, this.window)
     }
 
     _showAtPosition() {
