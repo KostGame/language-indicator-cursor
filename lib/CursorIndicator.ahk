@@ -2,6 +2,7 @@
 ;
 ; Fork-specific behavior:
 ; - visible for ordinary mouse pointers, not only IBeam text cursors
+; - hides after configurable mouse inactivity and reappears on movement
 ; - never replaces the Windows system cursor
 ; - resolves RU/EN from the actual Windows LANGID, not discovery order
 ; - ignores Caps Lock for flag selection
@@ -26,6 +27,7 @@ class CursorIndicator extends IndicatorBase {
         markMargin: { x: 18, y: 12, useCursorSize: false },
         markScale: 2,
         mousePositionPrediction: 0.5,
+        mouseIdleHideAfter: 3000,
         inputCheckPeriod: 50,
         markRepaintPeriod: 6,
     }
@@ -36,6 +38,9 @@ class CursorIndicator extends IndicatorBase {
         super.__New(cfg)
 
         this.markPainter.scale := cfg.markScale
+        this.lastMouseX := ""
+        this.lastMouseY := ""
+        this.lastMouseMoveTick := A_TickCount
     }
 
     Check() {
@@ -71,6 +76,23 @@ class CursorIndicator extends IndicatorBase {
         return GetMousePos(this.cfg.mousePositionPrediction)
     }
 
+    IsMouseActive(pos, nowTick?) {
+        if !IsSet(nowTick)
+            nowTick := A_TickCount
+
+        if (this.lastMouseX == "" or this.lastMouseY == "" or pos.x != this.lastMouseX or pos.y != this.lastMouseY) {
+            this.lastMouseX := pos.x
+            this.lastMouseY := pos.y
+            this.lastMouseMoveTick := nowTick
+            return true
+        }
+
+        if (this.cfg.mouseIdleHideAfter <= 0)
+            return true
+
+        return (nowTick - this.lastMouseMoveTick) < this.cfg.mouseIdleHideAfter
+    }
+
     PaintMark(markObj) {
         if (!markObj.image or 10 > StrLen(markObj.image)) {
             this.markPainter.HideWindow()
@@ -82,6 +104,11 @@ class CursorIndicator extends IndicatorBase {
         if (pos.x == -1 or pos.y == -1) {
             this.markPainter.HideWindow()
             this.markPainter.Clear()
+            return
+        }
+
+        if !this.IsMouseActive(pos) {
+            this.markPainter.HideWindow()
             return
         }
 
