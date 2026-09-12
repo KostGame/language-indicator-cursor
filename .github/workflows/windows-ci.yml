@@ -38,15 +38,16 @@ jobs:
           }
 
       - name: Compile executables
+        timeout-minutes: 3
         shell: pwsh
         run: |
-          $mainArgs = @('/in', '.\language-indicator.ahk', '/out', '.\language-indicator.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico')
+          $mainArgs = @('/in', '.\language-indicator.ahk', '/out', '.\language-indicator.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico', '/silent', 'verbose')
           $main = Start-Process -FilePath '${{ steps.ahk.outputs.ahk2Exe }}' -ArgumentList $mainArgs -NoNewWindow -Wait -PassThru
           if ($main.ExitCode -ne 0 -or !(Test-Path '.\language-indicator.exe')) {
             throw "Main Ahk2Exe compilation failed with exit code $($main.ExitCode)"
           }
 
-          $workerArgs = @('/in', '.\caret-worker.ahk', '/out', '.\language-indicator-caret-worker.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico')
+          $workerArgs = @('/in', '.\caret-worker.ahk', '/out', '.\language-indicator-caret-worker.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico', '/silent', 'verbose')
           $worker = Start-Process -FilePath '${{ steps.ahk.outputs.ahk2Exe }}' -ArgumentList $workerArgs -NoNewWindow -Wait -PassThru
           if ($worker.ExitCode -ne 0 -or !(Test-Path '.\language-indicator-caret-worker.exe')) {
             throw "Caret worker Ahk2Exe compilation failed with exit code $($worker.ExitCode)"
