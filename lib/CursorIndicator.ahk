@@ -30,7 +30,7 @@ class CursorIndicator extends IndicatorBase {
         opacity: 230,
         mousePositionPrediction: 0.5,
         mouseIdleHideAfter: 3000,
-        inputCheckPeriod: 50,
+        inputCheckPeriod: 20,
         markRepaintPeriod: 6,
     }
 

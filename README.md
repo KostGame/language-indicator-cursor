@@ -50,6 +50,8 @@ Each tray change is persisted and the indicator reloads automatically so the new
 
 Foreground focus changes can briefly make Windows input-locale or caret APIs unavailable. The fork contains timer exception containment, transient-locale recovery, stale-overlay recreation, and last-valid RU/EN retention so one bad focus transition does not permanently stop updates.
 
+Input-locale sampling uses a 20 ms cadence. This was retained after manual testing showed substantially better stability with Caramba Switcher Double Shift last-word correction than the earlier 50 ms cadence. An extremely fast repeated correction sequence may still expose a rare timing edge; issue #3 remains available for follow-up, but it is not considered a release blocker.
+
 If a runtime error occurs, a throttled diagnostic log is written to:
 
 ```text
@@ -57,8 +59,6 @@ If a runtime error occurs, a throttled diagnostic log is written to:
 ```
 
 The log rotates at roughly 64 KiB to avoid unbounded growth. If `runtime.log` is absent, no contained runtime exception has been recorded in that run.
-
-A runtime-disappearance regression found during prototype testing is tracked in issue #3, including Caramba Switcher last-word conversion. Stable merge/release remains gated on a final Windows smoke/soak test.
 
 ## Installation
 
@@ -115,6 +115,8 @@ The compiler writes `language-indicator.exe` in the repository root.
 ## Limitations
 
 Caret position detection depends on what the target application exposes to Windows. Standard Win32 controls and many modern applications are supported by the upstream detection stack, but some custom-rendered editors may not expose a usable caret position. In that case the mouse flag continues to work normally.
+
+A non-elevated indicator may also be unable to inspect caret/UI-accessibility data from an elevated Administrator application because of Windows integrity-level isolation. That case is tracked separately and should be solved without weakening UAC.
 
 ## Upstream
 

@@ -35,7 +35,7 @@ class CaretIndicatorTests {
         T.AssertEqual(cfg.markScale, 2, "Caret flags are displayed at 2x source size")
         T.AssertEqual(cfg.opacity, 179, "Caret flag defaults to about 70 percent opacity")
         T.AssertEqual(cfg.markMargin.y, -12, "Caret flag is raised above typed text by default")
-        T.AssertEqual(cfg.inputCheckPeriod, 50, "Default inputCheckPeriod is 50")
+        T.AssertEqual(cfg.inputCheckPeriod, 20, "Default inputCheckPeriod is 20")
         T.AssertEqual(cfg.markRepaintPeriod, 16, "Default markRepaintPeriod is 16")
         T.AssertEqual(cfg.positionCacheTtl, 1000, "Default positionCacheTtl is 1000")
     }
@@ -102,7 +102,7 @@ class CursorIndicatorTests {
         T.AssertEqual(cfg.opacity, 230, "Mouse flag defaults to about 90 percent opacity")
         T.AssertEqual(cfg.markMargin.useCursorSize, false, "Placement is independent of cursor type")
         T.AssertEqual(cfg.mouseIdleHideAfter, 3000, "Mouse flag hides after 3000ms idle")
-        T.AssertEqual(cfg.inputCheckPeriod, 50, "Default inputCheckPeriod is 50")
+        T.AssertEqual(cfg.inputCheckPeriod, 20, "Default inputCheckPeriod is 20")
         T.AssertEqual(cfg.markRepaintPeriod, 6, "Default markRepaintPeriod is 6")
     }
 
