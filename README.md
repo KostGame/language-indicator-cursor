@@ -57,6 +57,8 @@ If a runtime error still occurs, a throttled diagnostic log is written to:
 
 The log rotates at roughly 64 KiB to avoid unbounded growth.
 
+A runtime-disappearance regression found during prototype testing is tracked in issue #3. Stable merge/release is gated on a final Windows soak test of the recovery build.
+
 ## Installation
 
 1. Download/unzip a build of this fork.
