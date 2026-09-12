@@ -1,22 +1,25 @@
 # Language Indicator Cursor for Windows
 
-Fork of `yakunins/language-indicator`, tuned for a simple multi-monitor use case: **always show the active RU/EN keyboard language next to the mouse pointer and next to the active text caret**.
+Fork of `yakunins/language-indicator`, tuned for a simple multi-monitor use case: keep the active RU/EN keyboard language close to where you are working, next to the mouse pointer and the active text caret.
 
 ## Fork behavior
 
 - Windows 11/10, AutoHotkey v2.
-- A small flag follows the mouse pointer on any monitor.
-- When an active text caret can be detected, the same language flag is also shown next to the insertion point.
+- A small flag follows the mouse pointer on any monitor while the mouse is active.
+- The mouse flag automatically hides after 3 seconds without mouse movement and reappears immediately when the mouse moves again.
+- When an active text caret can be detected, the same language flag is also shown next to the insertion point. The caret flag is not hidden by mouse inactivity, so it remains useful while typing.
 - **Russian** layouts use `img/flags-png/ru.png`.
 - **English** layouts (US, UK, etc.) use `img/flags-png/us.png`.
 - Layout identity is resolved from the actual Windows `HKL/LANGID`, not from the order in which layouts were encountered after startup.
-- The mouse marker is visible over ordinary UI and is **not limited to the I-beam text cursor**.
+- The mouse marker works over ordinary UI and is **not limited to the I-beam text cursor**.
 - The Windows system cursor is never replaced.
 - Marker overlays are non-activating and click-through.
 - Caps Lock does not change the language flag.
 - Other languages currently hide the markers.
 
 The source flag images are 8×6 pixels and are displayed at 2× size by default, so the visible marker is approximately 16×12 pixels.
+
+The mouse idle timeout is controlled by `cursor.mouseIdleHideAfter` in `language-indicator.ahk`. The default is `3000` milliseconds. Set it to `0` or a negative value to disable idle hiding.
 
 ## Installation
 
@@ -40,7 +43,7 @@ Run the AutoHotkey v2 console test suite:
 tests\RunTestsConsole.ahk
 ```
 
-The fork adds tests for direct Windows locale-to-flag mapping, including Russian and multiple English LANGIDs, plus cursor/caret flag configuration.
+The fork adds tests for direct Windows locale-to-flag mapping, including Russian and multiple English LANGIDs, cursor/caret flag configuration, and mouse-idle visibility behavior.
 
 ### Compile
 
@@ -54,7 +57,7 @@ The compiler writes `language-indicator.exe` in the repository root.
 
 ## Relevant implementation
 
-- `lib/CursorIndicator.ahk` follows the mouse and selects the RU/EN flag.
+- `lib/CursorIndicator.ahk` follows the mouse, selects the RU/EN flag, and handles the idle timeout.
 - `lib/CaretIndicator.ahk` follows the active text caret and uses the same RU/EN mapping.
 - `lib/detection/GetInputLocaleId.ahk` reads the keyboard layout of the active foreground window.
 - `lib/detection/GetLanguageFlagCode.ahk` maps Windows primary language IDs to `ru` / `us` flag assets.
