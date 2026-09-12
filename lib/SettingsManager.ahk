@@ -7,8 +7,8 @@ class SettingsManager {
 
     __New(defaultCfg) {
         this.defaultCfg := defaultCfg
-        this.settingsDir := A_AppData . "\\" . SettingsManager.AppFolder
-        this.path := this.settingsDir . "\\settings.ini"
+        this.settingsDir := A_AppData . "\" . SettingsManager.AppFolder
+        this.path := this.settingsDir . "\settings.ini"
     }
 
     Load() {
@@ -47,10 +47,10 @@ class SettingsManager {
         A_TrayMenu.Add("У мыши", mouseMenu)
         A_TrayMenu.Add("В поле ввода", caretMenu)
         A_TrayMenu.Add()
-        A_TrayMenu.Add("Перезапустить индикатор", (*) => Reload())
+        A_TrayMenu.Add("Перезапустить индикатор", (*) => this.ReloadClean())
         A_TrayMenu.Add("Открыть папку настроек", (*) => this.OpenSettingsFolder())
         A_TrayMenu.Add()
-        A_TrayMenu.Add("Выход", (*) => ExitApp())
+        A_TrayMenu.Add("Выход", (*) => this.ExitClean())
     }
 
     BuildIndicatorMenu(section, cfg, includeIdle, enabledLabel) {
@@ -70,7 +70,7 @@ class SettingsManager {
             if percent == currentOpacity
                 opacityMenu.Check(label)
         }
-        indicatorMenu.Add("Прозрачность: " . currentOpacity . "%", opacityMenu)
+        indicatorMenu.Add("Непрозрачность: " . currentOpacity . "%", opacityMenu)
 
         positionMenu := Menu()
         positionMenu.Add("↑ Выше на 2 px", ObjBindMethod(this, "AdjustAndReload", section, "OffsetY", cfg.markMargin.y, -2, -200, 200))
@@ -103,13 +103,13 @@ class SettingsManager {
     SetBoolAndReload(section, key, value, *) {
         DirCreate(this.settingsDir)
         IniWrite(value ? 1 : 0, this.path, section, key)
-        Reload()
+        this.ReloadClean()
     }
 
     SetIntAndReload(section, key, value, *) {
         DirCreate(this.settingsDir)
         IniWrite(value, this.path, section, key)
-        Reload()
+        this.ReloadClean()
     }
 
     AdjustAndReload(section, key, currentValue, delta, minValue, maxValue, *) {
@@ -121,7 +121,19 @@ class SettingsManager {
         DirCreate(this.settingsDir)
         IniWrite(x, this.path, section, "OffsetX")
         IniWrite(y, this.path, section, "OffsetY")
+        this.ReloadClean()
+    }
+
+    ReloadClean(*) {
+        try A_IconHidden := true
+        Sleep(30)
         Reload()
+    }
+
+    ExitClean(*) {
+        try A_IconHidden := true
+        Sleep(30)
+        ExitApp()
     }
 
     OpenSettingsFolder(*) {
