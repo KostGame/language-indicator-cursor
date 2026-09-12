@@ -24,14 +24,14 @@ All settings live directly in the tray menu. There is no separate settings windo
 
 ### `У мыши`
 
-- **Показывать** on/off.
+- **Показывать у мыши** on/off.
 - **Прозрачность**: 40–100% presets.
 - **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
 - **Скрывать через**: never / 1 / 2 / 3 / 5 / 10 seconds.
 
 ### `В поле ввода`
 
-- **Показывать** on/off.
+- **Показывать в поле ввода** on/off.
 - **Прозрачность**: 40–100% presets.
 - **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
 
