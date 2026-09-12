@@ -87,7 +87,7 @@ class CursorIndicatorTests {
         T.AssertEqual(cfg.files.capslockSuffix, "", "Caps Lock does not select another cursor flag")
         T.Assert(cfg.files.extensions.Length == 1, "Only PNG floating flags are supported")
         T.AssertEqual(cfg.files.extensions[1], ".png", "Cursor marker is a PNG overlay")
-        T.Assert(InStr(cfg.files.folder, "img\\flags-png") > 0, "Cursor flags come from img/flags-png")
+        T.Assert(InStr(cfg.files.folder, "img\flags-png") > 0, "Cursor flags come from img/flags-png")
         T.AssertEqual(cfg.markScale, 2, "Flags are displayed at 2x source size")
         T.AssertEqual(cfg.markMargin.useCursorSize, false, "Placement is independent of cursor type")
         T.AssertEqual(cfg.inputCheckPeriod, 50, "Default inputCheckPeriod is 50")
