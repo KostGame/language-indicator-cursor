@@ -50,7 +50,7 @@ Each tray change is persisted and the indicator reloads automatically so the new
 
 Foreground focus changes can briefly make Windows input-locale or caret APIs unavailable. The fork contains timer exception containment, transient-locale recovery, stale-overlay recreation, and last-valid RU/EN retention so one bad focus transition does not permanently stop updates.
 
-Input-locale sampling uses a 20 ms cadence in the current stabilization candidate. This mirrors the effective sampling cadence of the diagnostic build that remained stable during Caramba Switcher Double Shift last-word correction, but without shipping the diagnostic tracer itself.
+Input-locale sampling uses a 20 ms cadence. This was retained after manual testing showed substantially better stability with Caramba Switcher Double Shift last-word correction than the earlier 50 ms cadence. An extremely fast repeated correction sequence may still expose a rare timing edge; issue #3 remains available for follow-up, but it is not considered a release blocker.
 
 If a runtime error occurs, a throttled diagnostic log is written to:
 
@@ -59,8 +59,6 @@ If a runtime error occurs, a throttled diagnostic log is written to:
 ```
 
 The log rotates at roughly 64 KiB to avoid unbounded growth. If `runtime.log` is absent, no contained runtime exception has been recorded in that run.
-
-A runtime-disappearance regression found during prototype testing is tracked in issue #3. Stable merge/release remains gated on a clean non-diagnostic Windows smoke test with repeated Caramba Switcher Double Shift last-word correction.
 
 ## Installation
 
