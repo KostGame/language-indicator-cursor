@@ -1,35 +1,47 @@
-; Retrieves the keyboard input locale ID for the active foreground window
+; Retrieves the keyboard input locale ID for the active foreground window.
+; Transient focus/control races are expected on Windows, so failures return 0
+; for the current tick instead of propagating an exception into timer callbacks.
 #requires AutoHotkey v2.0
-#DllLoad "Imm32" ; for consoles compatibility, see docs.microsoft.com/en-us/windows/win32/api/imm/
+#DllLoad "Imm32"
 
-global imm := DllCall("GetModuleHandle", "Str", "Imm32", "Ptr") ; better performance; lexikos.github.io/v2/docs/commands/DllCall.htm
-global immGetDefaultIMEWnd := DllCall("GetProcAddress", "Ptr", imm, "AStr", "ImmGetDefaultIMEWnd", "Ptr") ; docs.microsoft.com/en-us/windows/win32/api/imm/nf-imm-immgetdefaultimewnd
+global imm := DllCall("GetModuleHandle", "Str", "Imm32", "Ptr")
+global immGetDefaultIMEWnd := DllCall("GetProcAddress", "Ptr", imm, "AStr", "ImmGetDefaultIMEWnd", "Ptr")
 
 GetInputLocaleId() {
-	foregroundWindow := DllCall("GetForegroundWindow") ; docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getforegroundwindow
+    try {
+        foregroundWindow := DllCall("GetForegroundWindow", "Ptr")
+        if !foregroundWindow
+            return 0
 
-	isConsole := WinActive("ahk_class ConsoleWindowClass") ; CMD, Powershell
-	isVGUI := WinActive("ahk_class vguiPopupWindow") ; Popups
-	isUWP := WinActive("ahk_class ApplicationFrameWindow") ; Steam, UWP apps: autohotkey.com/boards/viewtopic.php?f=76&t=69414
+        isConsole := WinActive("ahk_class ConsoleWindowClass")
+        isVGUI := WinActive("ahk_class vguiPopupWindow")
+        isUWP := WinActive("ahk_class ApplicationFrameWindow")
 
-	if isConsole {
-		IMEWnd := DllCall(immGetDefaultIMEWnd, "Ptr", foregroundWindow) ; DllCall("Imm32.dll\ImmGetDefaultIMEWnd", "Ptr",fgWin)
-		if (IMEWnd = 0) {
-			return
-		} else {
-			foregroundWindow := IMEWnd
-		}
-	} else if isVGUI or isUWP {
-		Focused := ControlGetFocus("A")
-		if (Focused = 0) {
-			return
-		} else {
-			ctrlID := ControlGetHwnd(Focused, "A")
-			foregroundWindow := ctrlID
-		}
-	}
-	threadId := DllCall("GetWindowThreadProcessId", "Ptr", foregroundWindow, "Ptr", 0) ; docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowthreadprocessid
-	inputLocaleId := DllCall("GetKeyboardLayout", "UInt", threadId) ; precise '0xfffffffff0c00409' value
+        if isConsole {
+            imeWnd := DllCall(immGetDefaultIMEWnd, "Ptr", foregroundWindow, "Ptr")
+            if !imeWnd
+                return 0
+            foregroundWindow := imeWnd
+        } else if isVGUI or isUWP {
+            focused := ControlGetFocus("A")
+            if !focused
+                return 0
 
-	return inputLocaleId
+            try ctrlId := ControlGetHwnd(focused, "A")
+            catch
+                return 0
+
+            if !ctrlId
+                return 0
+            foregroundWindow := ctrlId
+        }
+
+        threadId := DllCall("GetWindowThreadProcessId", "Ptr", foregroundWindow, "Ptr", 0, "UInt")
+        if !threadId
+            return 0
+
+        return DllCall("GetKeyboardLayout", "UInt", threadId, "Ptr")
+    } catch {
+        return 0
+    }
 }
