@@ -19,6 +19,7 @@ class CaretIndicatorTests {
         T.Assert(cfg.HasOwnProp("debug"), "Config has debug property")
         T.Assert(cfg.HasOwnProp("files"), "Config has files property")
         T.Assert(cfg.HasOwnProp("markMargin"), "Config has markMargin property")
+        T.Assert(cfg.HasOwnProp("markScale"), "Config has markScale property")
         T.Assert(cfg.HasOwnProp("inputCheckPeriod"), "Config has inputCheckPeriod property")
         T.Assert(cfg.HasOwnProp("markRepaintPeriod"), "Config has markRepaintPeriod property")
 
@@ -26,9 +27,12 @@ class CaretIndicatorTests {
         T.Assert(cfg.files.HasOwnProp("extensions"), "files has extensions property")
         T.Assert(cfg.files.HasOwnProp("capslockSuffix"), "files has capslockSuffix property")
 
-        T.AssertEqual(cfg.files.capslockSuffix, "-capslock", "Default capslock suffix is -capslock")
-        T.Assert(cfg.files.extensions.Length == 2, "Default extensions has 2 items")
-        T.AssertEqual(cfg.inputCheckPeriod, 100, "Default inputCheckPeriod is 100")
+        T.AssertEqual(cfg.files.capslockSuffix, "", "Caps Lock does not select another caret flag")
+        T.Assert(cfg.files.extensions.Length == 1, "Caret indicator uses PNG flags")
+        T.AssertEqual(cfg.files.extensions[1], ".png", "Caret marker is a PNG overlay")
+        T.Assert(InStr(cfg.files.folder, "img\flags-png") > 0, "Caret flags come from img/flags-png")
+        T.AssertEqual(cfg.markScale, 2, "Caret flags are displayed at 2x source size")
+        T.AssertEqual(cfg.inputCheckPeriod, 50, "Default inputCheckPeriod is 50")
         T.AssertEqual(cfg.markRepaintPeriod, 16, "Default markRepaintPeriod is 16")
         T.AssertEqual(cfg.positionCacheTtl, 1000, "Default positionCacheTtl is 1000")
     }
@@ -39,13 +43,11 @@ class CaretIndicatorTests {
         indicator := CaretIndicator()
 
         T.Assert(indicator.HasOwnProp("cfg"), "Indicator has cfg")
-        T.Assert(indicator.HasOwnProp("inputState"), "Indicator has inputState")
         T.Assert(indicator.HasOwnProp("markPainter"), "Indicator has markPainter (ImagePainter)")
         T.Assert(indicator.HasOwnProp("currentMarkObj"), "Indicator has currentMarkObj")
         T.Assert(indicator.HasOwnProp("getCachedPosition"), "Indicator has getCachedPosition")
-
-        T.Assert(indicator.inputState is InputState, "inputState is InputState instance")
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
+        T.AssertEqual(indicator.markPainter.scale, 2, "Caret indicator applies configured image scale")
     }
 
     static TestGetPosition() {
