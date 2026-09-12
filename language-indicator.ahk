@@ -5,6 +5,7 @@
 #include lib\CursorIndicator.ahk
 #include lib\SettingsManager.ahk
 #include lib\utils\Merge.ahk
+#include lib\utils\CarambaTrace.ahk
 
 HideTrayIconOnExit(reason, code) {
     try A_IconHidden := true
@@ -13,7 +14,7 @@ HideTrayIconOnExit(reason, code) {
 OnExit(HideTrayIconOnExit)
 
 class LanguageIndicator {
-    static Version := "0.79-kost.6"
+    static Version := "0.79-kost.6-diag"
 
     __New(cfg?) {
         defaultCfg := {
@@ -56,5 +57,6 @@ class LanguageIndicator {
 ; Application entry point
 global app := LanguageIndicator()
 app.Run()
+CarambaTrace.Start()
 
 A_IconTip := "Language Indicator Cursor v" . LanguageIndicator.Version
