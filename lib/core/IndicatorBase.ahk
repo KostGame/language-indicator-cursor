@@ -10,6 +10,7 @@
 
 class IndicatorBase {
     static SHUTDOWN_REASONS := "^(?i:Logoff|Shutdown)$"
+    static PAINTER_HEALTH_PERIOD := 2000
 
     __New(cfg) {
         this.cfg := cfg
@@ -27,6 +28,7 @@ class IndicatorBase {
     Run() {
         SetTimer(() => this.SafeCheck(), this.cfg.inputCheckPeriod)
         SetTimer(() => this.SafeRepaint(), this.cfg.markRepaintPeriod)
+        SetTimer(() => this.SafePainterHealthCheck(), IndicatorBase.PAINTER_HEALTH_PERIOD)
         OnExit((reason, code) => this.OnExit(reason, code))
     }
 
@@ -40,6 +42,12 @@ class IndicatorBase {
         try this.Repaint()
         catch as err
             RuntimeLogError(Type(this) . ".Repaint", err)
+    }
+
+    SafePainterHealthCheck() {
+        try this.markPainter.HealthCheck()
+        catch as err
+            RuntimeLogError(Type(this) . ".PainterHealth", err)
     }
 
     Check() {
