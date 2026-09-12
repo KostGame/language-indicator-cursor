@@ -16,22 +16,26 @@ class CaretIndicatorTests {
 
         cfg := CaretIndicator.DefaultConfig
 
-        ; Verify default config structure
         T.Assert(cfg.HasOwnProp("debug"), "Config has debug property")
         T.Assert(cfg.HasOwnProp("files"), "Config has files property")
         T.Assert(cfg.HasOwnProp("markMargin"), "Config has markMargin property")
+        T.Assert(cfg.HasOwnProp("markScale"), "Config has markScale property")
+        T.Assert(cfg.HasOwnProp("opacity"), "Config has opacity property")
         T.Assert(cfg.HasOwnProp("inputCheckPeriod"), "Config has inputCheckPeriod property")
         T.Assert(cfg.HasOwnProp("markRepaintPeriod"), "Config has markRepaintPeriod property")
 
-        ; Verify files config
         T.Assert(cfg.files.HasOwnProp("folder"), "files has folder property")
         T.Assert(cfg.files.HasOwnProp("extensions"), "files has extensions property")
         T.Assert(cfg.files.HasOwnProp("capslockSuffix"), "files has capslockSuffix property")
 
-        ; Verify default values
-        T.AssertEqual(cfg.files.capslockSuffix, "-capslock", "Default capslock suffix is -capslock")
-        T.Assert(cfg.files.extensions.Length == 2, "Default extensions has 2 items")
-        T.AssertEqual(cfg.inputCheckPeriod, 100, "Default inputCheckPeriod is 100")
+        T.AssertEqual(cfg.files.capslockSuffix, "", "Caps Lock does not select another caret flag")
+        T.Assert(cfg.files.extensions.Length == 1, "Caret indicator uses PNG flags")
+        T.AssertEqual(cfg.files.extensions[1], ".png", "Caret marker is a PNG overlay")
+        T.Assert(InStr(cfg.files.folder, "img\flags-png") > 0, "Caret flags come from img/flags-png")
+        T.AssertEqual(cfg.markScale, 2, "Caret flags are displayed at 2x source size")
+        T.AssertEqual(cfg.opacity, 179, "Caret flag defaults to about 70 percent opacity")
+        T.AssertEqual(cfg.markMargin.y, -12, "Caret flag is raised above typed text by default")
+        T.AssertEqual(cfg.inputCheckPeriod, 20, "Default inputCheckPeriod is 20")
         T.AssertEqual(cfg.markRepaintPeriod, 16, "Default markRepaintPeriod is 16")
         T.AssertEqual(cfg.positionCacheTtl, 1000, "Default positionCacheTtl is 1000")
     }
@@ -41,24 +45,19 @@ class CaretIndicatorTests {
 
         indicator := CaretIndicator()
 
-        ; Verify indicator was created with components
         T.Assert(indicator.HasOwnProp("cfg"), "Indicator has cfg")
-        T.Assert(indicator.HasOwnProp("inputState"), "Indicator has inputState")
         T.Assert(indicator.HasOwnProp("markPainter"), "Indicator has markPainter (ImagePainter)")
         T.Assert(indicator.HasOwnProp("currentMarkObj"), "Indicator has currentMarkObj")
         T.Assert(indicator.HasOwnProp("getCachedPosition"), "Indicator has getCachedPosition")
-
-        ; Verify types
-        T.Assert(indicator.inputState is InputState, "inputState is InputState instance")
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
+        T.AssertEqual(indicator.markPainter.scale, 2, "Caret indicator applies configured image scale")
+        T.AssertEqual(indicator.markPainter.opacity, 179, "Caret indicator applies configured opacity")
     }
 
     static TestGetPosition() {
         T.StartSuite("CaretIndicator.GetPosition")
 
         indicator := CaretIndicator()
-
-        ; GetPosition returns an object with position info
         pos := indicator.GetPosition()
 
         T.Assert(pos.HasOwnProp("left"), "Position has left property")
@@ -66,7 +65,7 @@ class CaretIndicatorTests {
         T.Assert(pos.HasOwnProp("right"), "Position has right property")
         T.Assert(pos.HasOwnProp("bottom"), "Position has bottom property")
         T.Assert(pos.HasOwnProp("w"), "Position has w (width) property")
-        T.Assert(pos.HasOwnProp("h"), "Position has h (height) property")
+        T.Assert(pos.HasOwnProp("h"), "Position has h (height property)")
         T.Assert(pos.HasOwnProp("detectMethod"), "Position has detectMethod property")
     }
 }
@@ -76,7 +75,8 @@ class CursorIndicatorTests {
         this.TestDefaultConfig()
         this.TestInitialization()
         this.TestGetPosition()
-        this.TestRevertCursors()
+        this.TestMouseIdleVisibility()
+        this.TestLanguageChangeWakesMouseFlag()
     }
 
     static TestDefaultConfig() {
@@ -84,23 +84,26 @@ class CursorIndicatorTests {
 
         cfg := CursorIndicator.DefaultConfig
 
-        ; Verify default config structure
         T.Assert(cfg.HasOwnProp("debug"), "Config has debug property")
         T.Assert(cfg.HasOwnProp("files"), "Config has files property")
         T.Assert(cfg.HasOwnProp("markMargin"), "Config has markMargin property")
+        T.Assert(cfg.HasOwnProp("markScale"), "Config has markScale property")
+        T.Assert(cfg.HasOwnProp("opacity"), "Config has opacity property")
         T.Assert(cfg.HasOwnProp("inputCheckPeriod"), "Config has inputCheckPeriod property")
         T.Assert(cfg.HasOwnProp("markRepaintPeriod"), "Config has markRepaintPeriod property")
-        T.Assert(cfg.HasOwnProp("target"), "Config has target property")
         T.Assert(cfg.HasOwnProp("mousePositionPrediction"), "Config has mousePositionPrediction property")
+        T.Assert(cfg.HasOwnProp("mouseIdleHideAfter"), "Config has mouseIdleHideAfter property")
 
-        ; Verify target config
-        T.Assert(cfg.target.HasOwnProp("cursorId"), "target has cursorId property")
-        T.Assert(cfg.target.HasOwnProp("cursorName"), "target has cursorName property")
-        T.AssertEqual(cfg.target.cursorId, 32513, "Default cursorId is 32513 (IDC_IBEAM)")
-        T.AssertEqual(cfg.target.cursorName, "IBeam", "Default cursorName is IBeam")
-
-        ; Verify cursor file extensions
-        T.Assert(cfg.files.extensions.Length == 4, "Cursor extensions has 4 items (cur, ani, ico, png)")
+        T.AssertEqual(cfg.files.capslockSuffix, "", "Caps Lock does not select another cursor flag")
+        T.Assert(cfg.files.extensions.Length == 1, "Only PNG floating flags are supported")
+        T.AssertEqual(cfg.files.extensions[1], ".png", "Cursor marker is a PNG overlay")
+        T.Assert(InStr(cfg.files.folder, "img\flags-png") > 0, "Cursor flags come from img/flags-png")
+        T.AssertEqual(cfg.markScale, 2, "Flags are displayed at 2x source size")
+        T.AssertEqual(cfg.opacity, 230, "Mouse flag defaults to about 90 percent opacity")
+        T.AssertEqual(cfg.markMargin.useCursorSize, false, "Placement is independent of cursor type")
+        T.AssertEqual(cfg.mouseIdleHideAfter, 3000, "Mouse flag hides after 3000ms idle")
+        T.AssertEqual(cfg.inputCheckPeriod, 20, "Default inputCheckPeriod is 20")
+        T.AssertEqual(cfg.markRepaintPeriod, 6, "Default markRepaintPeriod is 6")
     }
 
     static TestInitialization() {
@@ -108,42 +111,53 @@ class CursorIndicatorTests {
 
         indicator := CursorIndicator()
 
-        ; Verify indicator was created with components
         T.Assert(indicator.HasOwnProp("cfg"), "Indicator has cfg")
-        T.Assert(indicator.HasOwnProp("inputState"), "Indicator has inputState")
         T.Assert(indicator.HasOwnProp("markPainter"), "Indicator has markPainter (ImagePainter)")
         T.Assert(indicator.HasOwnProp("currentMarkObj"), "Indicator has currentMarkObj")
-        T.Assert(indicator.HasOwnProp("modifiedCursorsCount"), "Indicator has modifiedCursorsCount")
-
-        ; Verify initial cursor state
-        T.AssertEqual(indicator.modifiedCursorsCount, 0, "Initial modifiedCursorsCount is 0")
+        T.Assert(indicator.HasOwnProp("lastMouseX"), "Indicator tracks last mouse X")
+        T.Assert(indicator.HasOwnProp("lastMouseY"), "Indicator tracks last mouse Y")
+        T.Assert(indicator.HasOwnProp("lastMouseMoveTick"), "Indicator tracks last mouse movement time")
+        T.Assert(indicator.HasOwnProp("lastFlagCode"), "Indicator tracks last valid flag code")
+        T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
+        T.AssertEqual(indicator.markPainter.scale, 2, "Cursor indicator applies configured image scale")
+        T.AssertEqual(indicator.markPainter.opacity, 230, "Cursor indicator applies configured opacity")
     }
 
     static TestGetPosition() {
         T.StartSuite("CursorIndicator.GetPosition")
 
         indicator := CursorIndicator()
-
-        ; GetPosition returns mouse position with prediction
         pos := indicator.GetPosition()
 
         T.Assert(pos.HasOwnProp("x"), "Position has x property")
         T.Assert(pos.HasOwnProp("y"), "Position has y property")
     }
 
-    static TestRevertCursors() {
-        T.StartSuite("CursorIndicator.RevertCursors")
+    static TestMouseIdleVisibility() {
+        T.StartSuite("CursorIndicator.MouseIdleVisibility")
 
         indicator := CursorIndicator()
+        pos := { x: 100, y: 200 }
 
-        ; RevertCursors should not error when no cursors modified
-        indicator.modifiedCursorsCount := 0
-        indicator.RevertCursors()
-        T.AssertEqual(indicator.modifiedCursorsCount, 0, "RevertCursors does nothing when count is 0")
+        T.Assert(indicator.IsMouseActive(pos, 1000), "First observed mouse position is active")
+        T.Assert(indicator.IsMouseActive(pos, 3999), "Mouse flag remains visible before 3s idle")
+        T.Assert(!indicator.IsMouseActive(pos, 4000), "Mouse flag hides at 3s idle")
+        T.Assert(indicator.IsMouseActive({ x: 101, y: 200 }, 4001), "Mouse movement makes flag visible again")
+        T.AssertEqual(indicator.lastMouseMoveTick, 4001, "Mouse movement refreshes idle timer")
+    }
 
-        ; Simulate modified cursor count
-        indicator.modifiedCursorsCount := 5
-        indicator.RevertCursors()
-        T.AssertEqual(indicator.modifiedCursorsCount, 0, "RevertCursors resets count to 0")
+    static TestLanguageChangeWakesMouseFlag() {
+        T.StartSuite("CursorIndicator.LanguageChangeWake")
+
+        indicator := CursorIndicator()
+        pos := { x: 100, y: 200 }
+
+        indicator.IsMouseActive(pos, 1000)
+        T.Assert(!indicator.IsMouseActive(pos, 4000), "Mouse is idle before layout change")
+        T.Assert(indicator.NoteLanguage("ru", 5000), "First valid language wakes indicator")
+        T.Assert(indicator.IsMouseActive(pos, 5001), "Language observation resets idle timeout")
+        T.Assert(!indicator.NoteLanguage("ru", 5100), "Same language does not repeatedly reset idle timeout")
+        T.Assert(indicator.NoteLanguage("us", 5200), "RU to EN change wakes indicator")
+        T.AssertEqual(indicator.lastMouseMoveTick, 5200, "Language change refreshes idle timestamp")
     }
 }

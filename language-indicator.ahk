@@ -3,39 +3,57 @@
 
 #include lib\CaretIndicator.ahk
 #include lib\CursorIndicator.ahk
+#include lib\SettingsManager.ahk
 #include lib\utils\Merge.ahk
 
+HideTrayIconOnExit(reason, code) {
+    try A_IconHidden := true
+}
+
+OnExit(HideTrayIconOnExit)
+
 class LanguageIndicator {
-    static Version := "0.78"
+    static Version := "0.79-kost.7"
 
     __New(cfg?) {
         defaultCfg := {
             caret: {
-                inputCheckPeriod: 50,    ; polling rate of locale + capslock
-                markRepaintPeriod: 16,   ; 16ms ≈ 60Hz, mark follows to the mouse cursor
-                markMargin: { x: 1, y: -1 }
+                enabled: true,
+                inputCheckPeriod: 20,
+                markRepaintPeriod: 16,
+                markMargin: { x: 6, y: -12 },
+                markScale: 2,
+                opacity: 179
             },
             cursor: {
-                inputCheckPeriod: 50,    ; polling rate of locale + capslock 10×/sec
-                markRepaintPeriod: 6,    ; 6ms ≈ 165Hz, mark follows to the mouse cursor
-                markMargin: { x: 2, y: -2, useCursorSize: true }
+                enabled: true,
+                inputCheckPeriod: 20,
+                markRepaintPeriod: 6,
+                markMargin: { x: 18, y: 12, useCursorSize: false },
+                markScale: 2,
+                opacity: 230,
+                mouseIdleHideAfter: 3000
             }
         }
 
-        this.cfg := IsSet(cfg) ? cfg : defaultCfg
+        this.settings := SettingsManager(defaultCfg)
+        this.cfg := IsSet(cfg) ? cfg : this.settings.Load()
 
         this.caretIndicator := CaretIndicator(merge(CaretIndicator.DefaultConfig, this.cfg.caret))
         this.cursorIndicator := CursorIndicator(merge(CursorIndicator.DefaultConfig, this.cfg.cursor))
     }
 
     Run() {
-        this.caretIndicator.Run()
-        this.cursorIndicator.Run()
+        if (!this.cfg.caret.HasOwnProp("enabled") or this.cfg.caret.enabled)
+            this.caretIndicator.Run()
+        if (!this.cfg.cursor.HasOwnProp("enabled") or this.cfg.cursor.enabled)
+            this.cursorIndicator.Run()
+
+        this.settings.ConfigureTray(this.cfg)
     }
 }
 
-; Application entry point
 global app := LanguageIndicator()
 app.Run()
 
-A_IconTip := "Language Indicator v" . LanguageIndicator.Version
+A_IconTip := "Language Indicator Cursor v" . LanguageIndicator.Version

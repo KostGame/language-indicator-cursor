@@ -1,0 +1,60 @@
+name: Windows CI
+
+on:
+  push:
+    branches:
+      - agent/**
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install AutoHotkey v2 and Ahk2Exe
+        id: ahk
+        uses: holy-tao/install-autohotkey@37e2ba93564d85ce51426c4e77efcbda81b65c24
+        with:
+          version: latest
+          compiler: latest
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk64 }}' -ArgumentList '/ErrorStdOut', '.\tests\RunTestsConsole.ahk' -NoNewWindow -Wait -PassThru
+          if (Test-Path '.\tests\test-results.txt') {
+            Get-Content '.\tests\test-results.txt'
+          }
+          if ($proc.ExitCode -ne 0) {
+            throw "AutoHotkey tests failed with exit code $($proc.ExitCode)"
+          }
+
+      - name: Compile executable
+        shell: pwsh
+        run: |
+          $args = @('/in', '.\language-indicator.ahk', '/out', '.\language-indicator.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico')
+          $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk2Exe }}' -ArgumentList $args -NoNewWindow -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or !(Test-Path '.\language-indicator.exe')) {
+            throw "Ahk2Exe compilation failed with exit code $($proc.ExitCode)"
+          }
+          Get-Item '.\language-indicator.exe' | Select-Object Name, Length, LastWriteTime
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: language-indicator-cursor-windows
+          path: |
+            language-indicator.exe
+            install.cmd
+            uninstall.cmd
+            img/flags-png/ru.png
+            img/flags-png/us.png
+          if-no-files-found: error

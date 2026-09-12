@@ -1,50 +1,129 @@
-# Language Indicator for Windows
+# Language Indicator Cursor for Windows
 
-<img src="img/how-it-work.gif" width="507" alt="Windows keyboard language indicator showing current input language near text caret and mouse cursor" />
+Fork of `yakunins/language-indicator`, tuned for a multi-monitor use case: keep the active RU/EN keyboard language close to where you are working, next to the mouse pointer and the active text caret.
 
-## Per-Language Styling of Text Caret and Mouse Cursor
+## Fork behavior
 
-Keeps track of your current keyboard language/layout and changes [caret](https://en.wikipedia.org/wiki/Caret_navigation) and [text selection mouse cursor](<https://en.wikipedia.org/wiki/Cursor_(user_interface)#I-beam_pointer>).
+- Windows 11/10, AutoHotkey v2.
+- A small flag follows the mouse pointer on any monitor while the mouse is active.
+- The mouse flag automatically hides after the configured idle period (3 seconds by default) and reappears immediately when the mouse moves again.
+- A real RU↔EN layout change also wakes the mouse flag for one idle-timeout window, even if the mouse itself did not move.
+- When an active text caret can be detected, the same language flag is also shown next to the insertion point. The caret flag is not hidden by mouse inactivity, so it remains useful while typing.
+- **Russian** layouts use `img/flags-png/ru.png`.
+- **English** layouts (US, UK, etc.) use `img/flags-png/us.png`.
+- Layout identity is resolved from the actual Windows `HKL/LANGID`, not from discovery order.
+- The Windows system cursor is never replaced.
+- Marker overlays are non-activating and click-through.
+- Caps Lock does not change the language flag.
+- Unsupported/transient helper layouts do not erase the last valid RU/EN flag.
 
-It works in most envs, including consoles and Universal Windows Apps, aka Metro apps.
-Exceptions are Adobe Indesign and some .NET MAUI apps.
+The source flag images are 8×6 pixels and are displayed at 2× size by default, so the visible marker is approximately 16×12 pixels.
 
-Built with [AutoHotkey v2](https://www.autohotkey.com/v2/). Executable compiled with [Ahk2Exe](https://github.com/AutoHotkey/Ahk2Exe).
+## Settings
+
+All settings live directly in the tray menu. There is no separate settings window.
+
+### `У мыши`
+
+- **Показывать у мыши** on/off.
+- **Непрозрачность**: 40–100% presets (`100%` = fully visible, `40%` = strongly transparent).
+- **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
+- **Скрывать через**: never / 1 / 2 / 3 / 5 / 10 seconds.
+
+### `В поле ввода`
+
+- **Показывать в поле ввода** on/off.
+- **Непрозрачность**: 40–100% presets (`100%` = fully visible).
+- **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
+
+Defaults are intentionally different: the mouse flag is about 90% opaque, while the text-caret flag is about 70% opaque and raised above the text line so it does not cover the word being typed.
+
+Settings are stored per user in:
+
+```text
+%APPDATA%\LanguageIndicatorCursor\settings.ini
+```
+
+Each tray change is persisted and the indicator reloads automatically so the new value takes effect.
+
+## Runtime recovery / diagnostics
+
+Foreground focus changes can briefly make Windows input-locale or caret APIs unavailable. The fork contains timer exception containment, transient-locale recovery, stale-overlay recreation, and last-valid RU/EN retention so one bad focus transition does not permanently stop updates.
+
+Input-locale sampling uses a 20 ms cadence. This was retained after manual testing showed substantially better stability with Caramba Switcher Double Shift last-word correction than the earlier 50 ms cadence. An extremely fast repeated correction sequence may still expose a rare timing edge; issue #3 remains available for follow-up, but it is not considered a release blocker.
+
+If a runtime error occurs, a throttled diagnostic log is written to:
+
+```text
+%APPDATA%\LanguageIndicatorCursor\runtime.log
+```
+
+The log rotates at roughly 64 KiB to avoid unbounded growth. If `runtime.log` is absent, no contained runtime exception has been recorded in that run.
 
 ## Installation
 
-1. Download and unzip the [latest release](../../releases/latest)
-2. Run `install.cmd` to create a shortcut in your startup folder
+1. Download/unzip a build of this fork.
+2. Run `install.cmd`.
+3. Start `language-indicator.exe` once if it is not already running.
 
-The release includes `cursors` and `carets` folders for lag-free cursor replacement. Standalone version (without `/cursors/`) paints a marker near the mouse cursor <ins>with lag</ins>. See [Customization](#customization) for details.
+`install.cmd` creates a shortcut in the current user's Windows Startup folder so the indicator starts automatically after sign-in.
 
-## Customization
+To remove the startup shortcut, run `uninstall.cmd`.
 
-1. Download or create [`carets`](./carets) or [`cursors`](./cursors) folders (since `cursors` folder exist, embedded images won't be used, see [`./lib/image-utils/UseBase64Image.ahk`](./lib/image-utils/UseBase64Image.ahk))
-2. Remove unwanted or add your own carets or mouse cursors within [`carets`](./carets) or [`cursors`](./cursors) folders
-3. Use the following naming convention:
+## Windows SmartScreen
 
-| Input                  | Mouse Cursor               | Text Caret Mark           |
-| :--------------------- | :------------------------- | :------------------------ |
-| Language 2             | `./cursors/2.cur`          | `./carets/2.png`          |
-| Language 1 + Caps Lock | `./cursors/1-capslock.cur` | `./carets/1-capslock.png` |
-| Language 2 + Caps Lock | `./cursors/2-capslock.png` | `./carets/2-capslock.png` |
+Development builds are currently **unsigned**, so Windows SmartScreen can show `Unknown publisher` / `Windows protected your PC` for a newly downloaded EXE. This is a publisher/reputation warning, not a malware verdict from this application.
 
-## Country Flags as Indicators
+For a polished public release, the executable should be Authenticode-signed with a trusted code-signing certificate. Rebuilding the EXE changes its hash, so unsigned development builds can trigger SmartScreen again even after an earlier build was allowed. The project intentionally does not attempt to suppress or bypass SmartScreen automatically.
 
-<img src="img/flag-as-language-indicator.gif" width="510" alt="country flag as keyboard language indicator for Windows" />
+## Releases
 
-1. Create a `carets` or `cursors` folder
-2. Copy a flag from [`img/flags-png/`](./img/flags-png/) (e.g., `es.png`)
-3. Rename it to match your language number (e.g., `2.png`)
+After a stable change is merged to `master`, `.github/workflows/release.yml` runs the Windows tests, compiles the executable, packages the runnable files, reads `LanguageIndicator.Version`, and publishes a versioned GitHub Release. If that version already exists, the workflow leaves the existing release untouched.
 
-## Supported Formats
+## Development
 
-| Folder    | Formats       | Notes                                  |
-| --------- | ------------- | -------------------------------------- |
-| `carets`  | PNG, GIF      | Floating mark next to text caret       |
-| `cursors` | CUR, ANI, ICO | Replaces system cursor (no lag)        |
-| `cursors` | PNG           | Floating mark near cursor (slight lag) |
+The application entry point is `language-indicator.ahk`.
 
-Enjoy!  
-A donut, [maybe](https://www.paypal.com/donate/?business=KXM47EKBXFV4S&no_recurring=0&item_name=funding+of+github.com%2Fyakunins&currency_code=USD)? 🍩
+### Tests
+
+Run the AutoHotkey v2 console test suite:
+
+```text
+tests\RunTestsConsole.ahk
+```
+
+### Compile
+
+With AutoHotkey v2 and Ahk2Exe installed in the standard location:
+
+```text
+tools\compile.cmd
+```
+
+The compiler writes `language-indicator.exe` in the repository root.
+
+## Relevant implementation
+
+- `lib/CursorIndicator.ahk` follows the mouse, selects the RU/EN flag, handles idle timeout, and wakes on real language changes.
+- `lib/CaretIndicator.ahk` follows the active text caret and uses the same RU/EN mapping.
+- `lib/SettingsManager.ahk` loads/saves per-user settings and builds the tray-only settings menus.
+- `lib/detection/GetInputLocaleId.ahk` reads the keyboard layout of the active foreground window and tolerates transient focus races.
+- `lib/detection/GetLanguageFlagCode.ahk` maps Windows primary language IDs to `ru` / `us` flag assets and retains the last valid supported language through transient helper layouts.
+- `lib/image-utils/ImagePainter.ahk` paints click-through overlays with uniform configurable opacity and stale-window recovery.
+- `lib/utils/RuntimeLog.ahk` writes throttled runtime diagnostics.
+
+## Limitations
+
+Caret position detection depends on what the target application exposes to Windows. Standard Win32 controls and many modern applications are supported by the upstream detection stack, but some custom-rendered editors may not expose a usable caret position. In that case the mouse flag continues to work normally.
+
+A non-elevated indicator may also be unable to inspect caret/UI-accessibility data from an elevated Administrator application because of Windows integrity-level isolation. That case is tracked separately and should be solved without weakening UAC.
+
+## Upstream
+
+Original project: `yakunins/language-indicator`.
+
+The upstream project supports per-language styling of both the text caret and mouse I-beam cursor, including `.cur`, `.ani`, `.ico`, and `.png` customization. This fork keeps that detection machinery but narrows the default visual behavior to explicit RU/EN flags for multi-monitor work.
+
+## License
+
+MIT, as in the upstream project.

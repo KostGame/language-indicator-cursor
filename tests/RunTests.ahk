@@ -4,9 +4,11 @@
 #include TestFramework.ahk
 #include MarkResolver.test.ahk
 #include UseBase64Image.test.ahk
+#include GetLanguageFlagCode.test.ahk
 #include InputState.test.ahk
 #include Indicators.test.ahk
 #include LanguageIndicator.test.ahk
+#include SettingsManager.test.ahk
 
 ; Run all tests
 RunAllTests() {
@@ -22,6 +24,9 @@ RunAllTests() {
     UseBase64ImageTests.Run()
     T.Log("")
 
+    GetLanguageFlagCodeTests.Run()
+    T.Log("")
+
     InputStateTests.Run()
     T.Log("")
 
@@ -33,6 +38,9 @@ RunAllTests() {
     T.Log("")
 
     LanguageIndicatorTests.Run()
+    T.Log("")
+
+    SettingsManagerTests.Run()
     T.Log("")
 
     ; Show summary

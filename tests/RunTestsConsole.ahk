@@ -5,9 +5,11 @@
 #include MarkResolver.test.ahk
 #include UseBase64Image.test.ahk
 #include UseCachedWhileIdle.test.ahk
+#include GetLanguageFlagCode.test.ahk
 #include InputState.test.ahk
 #include Indicators.test.ahk
 #include LanguageIndicator.test.ahk
+#include SettingsManager.test.ahk
 
 ; Run all tests and output to file
 RunAllTests() {
@@ -30,6 +32,9 @@ RunAllTests() {
         UseCachedWhileIdleTests.Run()
         T.Log("")
 
+        GetLanguageFlagCodeTests.Run()
+        T.Log("")
+
         InputStateTests.Run()
         T.Log("")
 
@@ -41,6 +46,9 @@ RunAllTests() {
         T.Log("")
 
         LanguageIndicatorTests.Run()
+        T.Log("")
+
+        SettingsManagerTests.Run()
         T.Log("")
 
         ; Show summary
