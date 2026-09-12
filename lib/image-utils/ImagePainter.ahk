@@ -182,25 +182,23 @@ class ImagePainter {
 
     _readBitmapDimensions(path, &width, &height) {
         imageType := 0
-        hBitmap := LoadPicture(path, "", &imageType)
-        if !hBitmap
+        handle := LoadPicture(path, "", &imageType)
+        if !handle
             return false
 
         try {
-            ; PNG/JPEG/BMP files are loaded as HBITMAP. BITMAP is 32 bytes on
-            ; 64-bit Windows and 24 bytes on 32-bit Windows; width/height stay
-            ; at offsets 4 and 8 in both layouts.
             bm := Buffer(A_PtrSize == 8 ? 32 : 24, 0)
-            if !DllCall("GetObject", "Ptr", hBitmap, "Int", bm.Size, "Ptr", bm, "Int")
+            if !DllCall("GetObject", "Ptr", handle, "Int", bm.Size, "Ptr", bm, "Int")
                 return false
             width := NumGet(bm, 4, "Int")
             height := Abs(NumGet(bm, 8, "Int"))
             return width > 0 and height > 0
         } finally {
-            if imageType == 1
-                DllCall("DeleteObject", "Ptr", hBitmap)
+            ; LoadPicture reports 0 for HBITMAP, 1 for HICON and 2 for HCURSOR.
+            if imageType == 0
+                DllCall("DeleteObject", "Ptr", handle)
             else
-                DllCall("DestroyIcon", "Ptr", hBitmap)
+                DllCall("DestroyIcon", "Ptr", handle)
         }
     }
 
