@@ -1,6 +1,6 @@
 #requires AutoHotkey v2.0
 
-; Persistent per-user settings and a small tray-accessible GUI.
+; Persistent per-user settings with a tray-only UI.
 ; Settings are stored under %APPDATA% so the application directory can stay read-only.
 class SettingsManager {
     static AppFolder := "LanguageIndicatorCursor"
@@ -38,69 +38,94 @@ class SettingsManager {
         return cfg
     }
 
-    Show(cfg) {
-        gui := Gui("+OwnDialogs", "Language Indicator Cursor - Настройки")
-        gui.SetFont("s10", "Segoe UI")
+    ConfigureTray(cfg) {
+        A_TrayMenu.Delete()
 
-        gui.AddText("xm ym w390", "Индикатор у мыши")
-        mouseEnabled := gui.AddCheckBox("xm y+8", "Показывать у мыши")
-        mouseEnabled.Value := cfg.cursor.enabled ? 1 : 0
-        gui.AddText("xm y+10 w155", "Прозрачность, %")
-        mouseOpacity := gui.AddEdit("x+8 yp-3 w70", SettingsManager.AlphaToPercent(cfg.cursor.opacity))
-        gui.AddText("xm y+10 w155", "Смещение X, px")
-        mouseX := gui.AddEdit("x+8 yp-3 w70", cfg.cursor.markMargin.x)
-        gui.AddText("xm y+10 w155", "Смещение Y, px")
-        mouseY := gui.AddEdit("x+8 yp-3 w70", cfg.cursor.markMargin.y)
-        gui.AddText("xm y+10 w155", "Скрывать через, сек")
-        mouseIdle := gui.AddEdit("x+8 yp-3 w70", Round(cfg.cursor.mouseIdleHideAfter / 1000))
-        gui.AddText("x+8 yp+3 c777777", "0 = не скрывать")
+        mouseMenu := this.BuildIndicatorMenu("Mouse", cfg.cursor, true)
+        caretMenu := this.BuildIndicatorMenu("Caret", cfg.caret, false)
 
-        gui.AddText("xm y+22 w390", "Индикатор у текстовой каретки")
-        caretEnabled := gui.AddCheckBox("xm y+8", "Показывать в поле ввода")
-        caretEnabled.Value := cfg.caret.enabled ? 1 : 0
-        gui.AddText("xm y+10 w155", "Прозрачность, %")
-        caretOpacity := gui.AddEdit("x+8 yp-3 w70", SettingsManager.AlphaToPercent(cfg.caret.opacity))
-        gui.AddText("xm y+10 w155", "Смещение X, px")
-        caretX := gui.AddEdit("x+8 yp-3 w70", cfg.caret.markMargin.x)
-        gui.AddText("xm y+10 w155", "Смещение Y, px")
-        caretY := gui.AddEdit("x+8 yp-3 w70", cfg.caret.markMargin.y)
-
-        gui.AddText("xm y+18 w390 c777777", "Отрицательное Y поднимает флаг выше. Настройки применятся после автоматического перезапуска.")
-
-        saveButton := gui.AddButton("xm y+18 w120 Default", "Сохранить")
-        cancelButton := gui.AddButton("x+10 w120", "Отмена")
-
-        saveButton.OnEvent("Click", (*) => this.SaveAndReload(
-            mouseEnabled.Value,
-            mouseOpacity.Value,
-            mouseX.Value,
-            mouseY.Value,
-            mouseIdle.Value,
-            caretEnabled.Value,
-            caretOpacity.Value,
-            caretX.Value,
-            caretY.Value
-        ))
-        cancelButton.OnEvent("Click", (*) => gui.Destroy())
-        gui.OnEvent("Escape", (*) => gui.Destroy())
-        gui.Show("AutoSize Center")
+        A_TrayMenu.Add("У мыши", mouseMenu)
+        A_TrayMenu.Add("В поле ввода", caretMenu)
+        A_TrayMenu.Add()
+        A_TrayMenu.Add("Перезапустить индикатор", (*) => Reload())
+        A_TrayMenu.Add("Открыть папку настроек", (*) => this.OpenSettingsFolder())
+        A_TrayMenu.Add()
+        A_TrayMenu.Add("Выход", (*) => ExitApp())
     }
 
-    SaveAndReload(mouseEnabled, mouseOpacity, mouseX, mouseY, mouseIdle, caretEnabled, caretOpacity, caretX, caretY) {
+    BuildIndicatorMenu(section, cfg, includeIdle) {
+        menu := Menu()
+
+        enabledLabel := "Показывать"
+        menu.Add(enabledLabel, ObjBindMethod(this, "SetBoolAndReload", section, "Enabled", !cfg.enabled))
+        if cfg.enabled
+            menu.Check(enabledLabel)
+
+        opacityMenu := Menu()
+        currentOpacity := SettingsManager.AlphaToPercent(cfg.opacity)
+        for percent in [40, 50, 60, 70, 80, 90, 100] {
+            label := percent . "%"
+            opacityMenu.Add(label, ObjBindMethod(this, "SetIntAndReload", section, "OpacityPercent", percent))
+            if percent == currentOpacity
+                opacityMenu.Check(label)
+        }
+        menu.Add("Прозрачность: " . currentOpacity . "%", opacityMenu)
+
+        positionMenu := Menu()
+        positionMenu.Add("↑ Выше на 2 px", ObjBindMethod(this, "AdjustAndReload", section, "OffsetY", cfg.markMargin.y, -2, -200, 200))
+        positionMenu.Add("↓ Ниже на 2 px", ObjBindMethod(this, "AdjustAndReload", section, "OffsetY", cfg.markMargin.y, 2, -200, 200))
+        positionMenu.Add("← Левее на 2 px", ObjBindMethod(this, "AdjustAndReload", section, "OffsetX", cfg.markMargin.x, -2, -200, 200))
+        positionMenu.Add("→ Правее на 2 px", ObjBindMethod(this, "AdjustAndReload", section, "OffsetX", cfg.markMargin.x, 2, -200, 200))
+        positionMenu.Add()
+        if section == "Mouse"
+            positionMenu.Add("Сбросить положение", ObjBindMethod(this, "SetPositionAndReload", section, 18, 12))
+        else
+            positionMenu.Add("Сбросить положение", ObjBindMethod(this, "SetPositionAndReload", section, 6, -12))
+        menu.Add("Положение: X " . cfg.markMargin.x . ", Y " . cfg.markMargin.y, positionMenu)
+
+        if includeIdle {
+            idleMenu := Menu()
+            currentIdle := Round(cfg.mouseIdleHideAfter / 1000)
+            options := [0, 1, 2, 3, 5, 10]
+            for seconds in options {
+                label := seconds == 0 ? "Не скрывать" : seconds . " сек"
+                idleMenu.Add(label, ObjBindMethod(this, "SetIntAndReload", section, "HideAfterSeconds", seconds))
+                if seconds == currentIdle
+                    idleMenu.Check(label)
+            }
+            menu.Add("Скрывать через: " . (currentIdle == 0 ? "никогда" : currentIdle . " сек"), idleMenu)
+        }
+
+        return menu
+    }
+
+    SetBoolAndReload(section, key, value, *) {
         DirCreate(this.settingsDir)
-
-        IniWrite(mouseEnabled ? 1 : 0, this.path, "Mouse", "Enabled")
-        IniWrite(SettingsManager.ClampInt(mouseOpacity, 20, 100, 90), this.path, "Mouse", "OpacityPercent")
-        IniWrite(SettingsManager.ClampInt(mouseX, -200, 200, 18), this.path, "Mouse", "OffsetX")
-        IniWrite(SettingsManager.ClampInt(mouseY, -200, 200, 12), this.path, "Mouse", "OffsetY")
-        IniWrite(SettingsManager.ClampInt(mouseIdle, 0, 3600, 3), this.path, "Mouse", "HideAfterSeconds")
-
-        IniWrite(caretEnabled ? 1 : 0, this.path, "Caret", "Enabled")
-        IniWrite(SettingsManager.ClampInt(caretOpacity, 20, 100, 70), this.path, "Caret", "OpacityPercent")
-        IniWrite(SettingsManager.ClampInt(caretX, -200, 200, 6), this.path, "Caret", "OffsetX")
-        IniWrite(SettingsManager.ClampInt(caretY, -200, 200, -12), this.path, "Caret", "OffsetY")
-
+        IniWrite(value ? 1 : 0, this.path, section, key)
         Reload()
+    }
+
+    SetIntAndReload(section, key, value, *) {
+        DirCreate(this.settingsDir)
+        IniWrite(value, this.path, section, key)
+        Reload()
+    }
+
+    AdjustAndReload(section, key, currentValue, delta, minValue, maxValue, *) {
+        nextValue := Max(minValue, Min(maxValue, currentValue + delta))
+        this.SetIntAndReload(section, key, nextValue)
+    }
+
+    SetPositionAndReload(section, x, y, *) {
+        DirCreate(this.settingsDir)
+        IniWrite(x, this.path, section, "OffsetX")
+        IniWrite(y, this.path, section, "OffsetY")
+        Reload()
+    }
+
+    OpenSettingsFolder(*) {
+        DirCreate(this.settingsDir)
+        Run(this.settingsDir)
     }
 
     ReadBool(section, key, fallback) {
