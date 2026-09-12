@@ -17,8 +17,9 @@ class CaretIndicator extends IndicatorBase {
             folder: A_ScriptDir . "\img\flags-png\",
             extensions: [".png"]
         },
-        markMargin: { x: 6, y: 0 },
+        markMargin: { x: 6, y: -12 },
         markScale: 2,
+        opacity: 179,
         inputCheckPeriod: 50,
         markRepaintPeriod: 16,
         positionCacheTtl: 1000,
@@ -29,6 +30,7 @@ class CaretIndicator extends IndicatorBase {
             cfg := CaretIndicator.DefaultConfig
         super.__New(cfg)
         this.markPainter.scale := cfg.markScale
+        this.markPainter.opacity := cfg.opacity
         this.getCachedPosition := UseCachedWhileIdle(
             () => this.ComputePosition(),
             this.cfg.positionCacheTtl
