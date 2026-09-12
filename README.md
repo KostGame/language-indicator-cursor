@@ -6,7 +6,8 @@ Fork of `yakunins/language-indicator`, tuned for a multi-monitor use case: keep 
 
 - Windows 11/10, AutoHotkey v2.
 - A small flag follows the mouse pointer on any monitor while the mouse is active.
-- The mouse flag automatically hides after 3 seconds without mouse movement and reappears immediately when the mouse moves again.
+- The mouse flag automatically hides after the configured idle period (3 seconds by default) and reappears immediately when the mouse moves again.
+- A real RU↔EN layout change also wakes the mouse flag for one idle-timeout window, even if the mouse itself did not move.
 - When an active text caret can be detected, the same language flag is also shown next to the insertion point. The caret flag is not hidden by mouse inactivity, so it remains useful while typing.
 - **Russian** layouts use `img/flags-png/ru.png`.
 - **English** layouts (US, UK, etc.) use `img/flags-png/us.png`.
@@ -14,7 +15,7 @@ Fork of `yakunins/language-indicator`, tuned for a multi-monitor use case: keep 
 - The Windows system cursor is never replaced.
 - Marker overlays are non-activating and click-through.
 - Caps Lock does not change the language flag.
-- Other languages currently hide the markers.
+- Unsupported/transient helper layouts do not erase the last valid RU/EN flag.
 
 The source flag images are 8×6 pixels and are displayed at 2× size by default, so the visible marker is approximately 16×12 pixels.
 
@@ -25,14 +26,14 @@ All settings live directly in the tray menu. There is no separate settings windo
 ### `У мыши`
 
 - **Показывать у мыши** on/off.
-- **Прозрачность**: 40–100% presets.
+- **Непрозрачность**: 40–100% presets (`100%` = fully visible, `40%` = strongly transparent).
 - **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
 - **Скрывать через**: never / 1 / 2 / 3 / 5 / 10 seconds.
 
 ### `В поле ввода`
 
 - **Показывать в поле ввода** on/off.
-- **Прозрачность**: 40–100% presets.
+- **Непрозрачность**: 40–100% presets (`100%` = fully visible).
 - **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
 
 Defaults are intentionally different: the mouse flag is about 90% opaque, while the text-caret flag is about 70% opaque and raised above the text line so it does not cover the word being typed.
@@ -47,17 +48,17 @@ Each tray change is persisted and the indicator reloads automatically so the new
 
 ## Runtime recovery / diagnostics
 
-Foreground focus changes can briefly make Windows input-locale or caret APIs unavailable. The fork contains timer exception containment, transient-locale recovery, and stale-overlay recreation so one bad focus transition does not permanently stop updates.
+Foreground focus changes can briefly make Windows input-locale or caret APIs unavailable. The fork contains timer exception containment, transient-locale recovery, stale-overlay recreation, and last-valid RU/EN retention so one bad focus transition does not permanently stop updates.
 
-If a runtime error still occurs, a throttled diagnostic log is written to:
+If a runtime error occurs, a throttled diagnostic log is written to:
 
 ```text
 %APPDATA%\LanguageIndicatorCursor\runtime.log
 ```
 
-The log rotates at roughly 64 KiB to avoid unbounded growth.
+The log rotates at roughly 64 KiB to avoid unbounded growth. If `runtime.log` is absent, no contained runtime exception has been recorded in that run.
 
-A runtime-disappearance regression found during prototype testing is tracked in issue #3. Stable merge/release is gated on a final Windows soak test of the recovery build.
+A runtime-disappearance regression found during prototype testing is tracked in issue #3, including Caramba Switcher last-word conversion. Stable merge/release remains gated on a final Windows smoke/soak test.
 
 ## Installation
 
@@ -77,7 +78,7 @@ For a polished public release, the executable should be Authenticode-signed with
 
 ## Releases
 
-After a stable change is merged to `master`, `.github/workflows/release.yml` runs the Windows tests, compiles the executable, packages the runnable files, reads `LanguageIndicator.Version`, and publishes a versioned GitHub Release such as `v0.79-kost.5`. If that version already exists, the workflow leaves the existing release untouched.
+After a stable change is merged to `master`, `.github/workflows/release.yml` runs the Windows tests, compiles the executable, packages the runnable files, reads `LanguageIndicator.Version`, and publishes a versioned GitHub Release. If that version already exists, the workflow leaves the existing release untouched.
 
 ## Development
 
@@ -103,12 +104,12 @@ The compiler writes `language-indicator.exe` in the repository root.
 
 ## Relevant implementation
 
-- `lib/CursorIndicator.ahk` follows the mouse, selects the RU/EN flag, and handles the idle timeout.
+- `lib/CursorIndicator.ahk` follows the mouse, selects the RU/EN flag, handles idle timeout, and wakes on real language changes.
 - `lib/CaretIndicator.ahk` follows the active text caret and uses the same RU/EN mapping.
 - `lib/SettingsManager.ahk` loads/saves per-user settings and builds the tray-only settings menus.
 - `lib/detection/GetInputLocaleId.ahk` reads the keyboard layout of the active foreground window and tolerates transient focus races.
-- `lib/detection/GetLanguageFlagCode.ahk` maps Windows primary language IDs to `ru` / `us` flag assets.
-- `lib/image-utils/ImagePainter.ahk` paints transparent click-through overlays with configurable opacity and stale-window recovery.
+- `lib/detection/GetLanguageFlagCode.ahk` maps Windows primary language IDs to `ru` / `us` flag assets and retains the last valid supported language through transient helper layouts.
+- `lib/image-utils/ImagePainter.ahk` paints click-through overlays with uniform configurable opacity and stale-window recovery.
 - `lib/utils/RuntimeLog.ahk` writes throttled runtime diagnostics.
 
 ## Limitations
