@@ -31,16 +31,22 @@ GetCaretRectSafe(&left?, &top?, &right?, &bottom?, &detectMethod?) {
         return true
     }
 
-    ; MSAA is the only cross-window accessibility fallback kept in rc3. We do
-    ; not invoke UI Automation or the upstream remote-thread hook here because
-    ; either can potentially wait on a provider/target and starve all AHK timers.
-    if TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
+    ; Browser content controls often do not expose a native Win32 caret, so keep
+    ; the MSAA fallback only for well-known browser window classes. Do not run
+    ; cross-process accessibility calls for arbitrary windows: a stuck provider
+    ; can starve every AutoHotkey timer in this single-process utility.
+    if IsBrowserCaretClass(className) and TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
         detectMethod := "safe:MSAA (className:" . className . ")"
         return true
     }
 
     detectMethod := "failure (safe-only className:" . className . ")"
     return false
+}
+
+IsBrowserCaretClass(className) {
+    return InStr(className, "Chrome_WidgetWin_") == 1
+        or className == "MozillaWindowClass"
 }
 
 TryGuiCaret(hwnd, &left, &top, &right, &bottom) {
