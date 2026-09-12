@@ -36,13 +36,19 @@ jobs:
             throw "AutoHotkey tests failed with exit code $($proc.ExitCode)"
           }
 
-      - name: Compile executable
+      - name: Compile executables
         shell: pwsh
         run: |
-          $args = @('/in', '.\language-indicator.ahk', '/out', '.\language-indicator.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico')
-          $proc = Start-Process -FilePath '${{ steps.ahk.outputs.ahk2Exe }}' -ArgumentList $args -NoNewWindow -Wait -PassThru
-          if ($proc.ExitCode -ne 0 -or !(Test-Path '.\language-indicator.exe')) {
-            throw "Ahk2Exe compilation failed with exit code $($proc.ExitCode)"
+          $mainArgs = @('/in', '.\language-indicator.ahk', '/out', '.\language-indicator.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico')
+          $main = Start-Process -FilePath '${{ steps.ahk.outputs.ahk2Exe }}' -ArgumentList $mainArgs -NoNewWindow -Wait -PassThru
+          if ($main.ExitCode -ne 0 -or !(Test-Path '.\language-indicator.exe')) {
+            throw "Main Ahk2Exe compilation failed with exit code $($main.ExitCode)"
+          }
+
+          $workerArgs = @('/in', '.\caret-worker.ahk', '/out', '.\language-indicator-caret-worker.exe', '/base', '${{ steps.ahk.outputs.ahk64 }}', '/icon', '.\img\app-icon.ico')
+          $worker = Start-Process -FilePath '${{ steps.ahk.outputs.ahk2Exe }}' -ArgumentList $workerArgs -NoNewWindow -Wait -PassThru
+          if ($worker.ExitCode -ne 0 -or !(Test-Path '.\language-indicator-caret-worker.exe')) {
+            throw "Caret worker Ahk2Exe compilation failed with exit code $($worker.ExitCode)"
           }
 
       - name: Resolve version
@@ -67,6 +73,7 @@ jobs:
           $dir = Join-Path $PWD 'release-package'
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
           Copy-Item '.\language-indicator.exe' $dir
+          Copy-Item '.\language-indicator-caret-worker.exe' $dir
           Copy-Item '.\install.cmd' $dir
           Copy-Item '.\uninstall.cmd' $dir
           Copy-Item '.\README.md' $dir
