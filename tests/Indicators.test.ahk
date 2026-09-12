@@ -20,6 +20,7 @@ class CaretIndicatorTests {
         T.Assert(cfg.HasOwnProp("files"), "Config has files property")
         T.Assert(cfg.HasOwnProp("markMargin"), "Config has markMargin property")
         T.Assert(cfg.HasOwnProp("markScale"), "Config has markScale property")
+        T.Assert(cfg.HasOwnProp("opacity"), "Config has opacity property")
         T.Assert(cfg.HasOwnProp("inputCheckPeriod"), "Config has inputCheckPeriod property")
         T.Assert(cfg.HasOwnProp("markRepaintPeriod"), "Config has markRepaintPeriod property")
 
@@ -32,6 +33,8 @@ class CaretIndicatorTests {
         T.AssertEqual(cfg.files.extensions[1], ".png", "Caret marker is a PNG overlay")
         T.Assert(InStr(cfg.files.folder, "img\flags-png") > 0, "Caret flags come from img/flags-png")
         T.AssertEqual(cfg.markScale, 2, "Caret flags are displayed at 2x source size")
+        T.AssertEqual(cfg.opacity, 179, "Caret flag defaults to about 70 percent opacity")
+        T.AssertEqual(cfg.markMargin.y, -12, "Caret flag is raised above typed text by default")
         T.AssertEqual(cfg.inputCheckPeriod, 50, "Default inputCheckPeriod is 50")
         T.AssertEqual(cfg.markRepaintPeriod, 16, "Default markRepaintPeriod is 16")
         T.AssertEqual(cfg.positionCacheTtl, 1000, "Default positionCacheTtl is 1000")
@@ -48,6 +51,7 @@ class CaretIndicatorTests {
         T.Assert(indicator.HasOwnProp("getCachedPosition"), "Indicator has getCachedPosition")
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
         T.AssertEqual(indicator.markPainter.scale, 2, "Caret indicator applies configured image scale")
+        T.AssertEqual(indicator.markPainter.opacity, 179, "Caret indicator applies configured opacity")
     }
 
     static TestGetPosition() {
@@ -83,6 +87,7 @@ class CursorIndicatorTests {
         T.Assert(cfg.HasOwnProp("files"), "Config has files property")
         T.Assert(cfg.HasOwnProp("markMargin"), "Config has markMargin property")
         T.Assert(cfg.HasOwnProp("markScale"), "Config has markScale property")
+        T.Assert(cfg.HasOwnProp("opacity"), "Config has opacity property")
         T.Assert(cfg.HasOwnProp("inputCheckPeriod"), "Config has inputCheckPeriod property")
         T.Assert(cfg.HasOwnProp("markRepaintPeriod"), "Config has markRepaintPeriod property")
         T.Assert(cfg.HasOwnProp("mousePositionPrediction"), "Config has mousePositionPrediction property")
@@ -93,6 +98,7 @@ class CursorIndicatorTests {
         T.AssertEqual(cfg.files.extensions[1], ".png", "Cursor marker is a PNG overlay")
         T.Assert(InStr(cfg.files.folder, "img\flags-png") > 0, "Cursor flags come from img/flags-png")
         T.AssertEqual(cfg.markScale, 2, "Flags are displayed at 2x source size")
+        T.AssertEqual(cfg.opacity, 230, "Mouse flag defaults to about 90 percent opacity")
         T.AssertEqual(cfg.markMargin.useCursorSize, false, "Placement is independent of cursor type")
         T.AssertEqual(cfg.mouseIdleHideAfter, 3000, "Mouse flag hides after 3000ms idle")
         T.AssertEqual(cfg.inputCheckPeriod, 50, "Default inputCheckPeriod is 50")
@@ -112,6 +118,7 @@ class CursorIndicatorTests {
         T.Assert(indicator.HasOwnProp("lastMouseMoveTick"), "Indicator tracks last mouse movement time")
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
         T.AssertEqual(indicator.markPainter.scale, 2, "Cursor indicator applies configured image scale")
+        T.AssertEqual(indicator.markPainter.opacity, 230, "Cursor indicator applies configured opacity")
     }
 
     static TestGetPosition() {
