@@ -6,7 +6,7 @@
 
 ; Recreate the LanguageIndicator class for testing (without auto-run)
 class LanguageIndicatorTestable {
-    static Version := "0.5"
+    static Version := "0.79-kost.5"
 
     caretIndicator := ""
     cursorIndicator := ""
@@ -22,7 +22,6 @@ class LanguageIndicatorTestable {
 
         this.cfg := cfg != "" ? cfg : defaultCfg
 
-        ; Create caret indicator config
         caretCfg := CaretIndicator.DefaultConfig
         if (this.cfg.HasOwnProp("inputCheckPeriod"))
             caretCfg.inputCheckPeriod := this.cfg.inputCheckPeriod
@@ -31,7 +30,6 @@ class LanguageIndicatorTestable {
         if (this.cfg.HasOwnProp("caret") and this.cfg.caret != "")
             caretCfg := this.MergeConfig(caretCfg, this.cfg.caret)
 
-        ; Create cursor indicator config
         cursorCfg := CursorIndicator.DefaultConfig
         if (this.cfg.HasOwnProp("inputCheckPeriod"))
             cursorCfg.inputCheckPeriod := this.cfg.inputCheckPeriod
@@ -64,16 +62,11 @@ class LanguageIndicatorTests {
 
         app := LanguageIndicatorTestable()
 
-        ; Verify both indicators created
         T.Assert(app.caretIndicator != "", "caretIndicator was created")
         T.Assert(app.cursorIndicator != "", "cursorIndicator was created")
-
-        ; Verify types
         T.Assert(app.caretIndicator is CaretIndicator, "caretIndicator is CaretIndicator instance")
         T.Assert(app.cursorIndicator is CursorIndicator, "cursorIndicator is CursorIndicator instance")
-
-        ; Verify version
-        T.AssertEqual(LanguageIndicatorTestable.Version, "0.5", "Version is 0.5")
+        T.AssertEqual(LanguageIndicatorTestable.Version, "0.79-kost.5", "Version is current fork version")
     }
 
     static TestCustomConfig() {
@@ -88,7 +81,6 @@ class LanguageIndicatorTests {
 
         app := LanguageIndicatorTestable(customCfg)
 
-        ; Verify custom periods propagated
         T.AssertEqual(app.caretIndicator.cfg.inputCheckPeriod, 50, "Caret inputCheckPeriod is 50")
         T.AssertEqual(app.cursorIndicator.cfg.inputCheckPeriod, 50, "Cursor inputCheckPeriod is 50")
         T.AssertEqual(app.caretIndicator.cfg.markRepaintPeriod, 25, "Caret markRepaintPeriod is 25")
@@ -98,7 +90,6 @@ class LanguageIndicatorTests {
     static TestPeriodPropagation() {
         T.StartSuite("LanguageIndicator.PeriodPropagation")
 
-        ; Test with different periods
         app1 := LanguageIndicatorTestable({ inputCheckPeriod: 5, markRepaintPeriod: 5 })
         T.AssertEqual(app1.caretIndicator.cfg.inputCheckPeriod, 5, "inputCheckPeriod=5 propagates to caret")
         T.AssertEqual(app1.cursorIndicator.cfg.inputCheckPeriod, 5, "inputCheckPeriod=5 propagates to cursor")
