@@ -3,6 +3,7 @@
 ; Fork-specific behavior:
 ; - visible for ordinary mouse pointers, not only IBeam text cursors
 ; - hides after configurable mouse inactivity and reappears on movement
+; - layout changes also wake the mouse marker for one idle-timeout window
 ; - never replaces the Windows system cursor
 ; - resolves RU/EN from the actual Windows LANGID, not discovery order
 ; - survives transient helper-window/layout states from third-party switchers
@@ -43,6 +44,7 @@ class CursorIndicator extends IndicatorBase {
         this.lastMouseX := ""
         this.lastMouseY := ""
         this.lastMouseMoveTick := A_TickCount
+        this.lastFlagCode := ""
     }
 
     Check() {
@@ -54,6 +56,8 @@ class CursorIndicator extends IndicatorBase {
         ; through transient helper-window/layout states (e.g. word correction).
         if (flagCode == "")
             return
+
+        this.NoteLanguage(flagCode)
 
         filePath := this.cfg.files.folder . flagCode . ".png"
         if !FileExist(filePath) {
@@ -75,6 +79,18 @@ class CursorIndicator extends IndicatorBase {
 
     GetPosition() {
         return GetMousePos(this.cfg.mousePositionPrediction)
+    }
+
+    NoteLanguage(flagCode, nowTick?) {
+        if !IsSet(nowTick)
+            nowTick := A_TickCount
+
+        if (flagCode != "" and flagCode != this.lastFlagCode) {
+            this.lastFlagCode := flagCode
+            this.lastMouseMoveTick := nowTick
+            return true
+        }
+        return false
     }
 
     IsMouseActive(pos, nowTick?) {
