@@ -65,7 +65,7 @@ class CaretIndicatorTests {
         T.Assert(pos.HasOwnProp("right"), "Position has right property")
         T.Assert(pos.HasOwnProp("bottom"), "Position has bottom property")
         T.Assert(pos.HasOwnProp("w"), "Position has w (width) property")
-        T.Assert(pos.HasOwnProp("h"), "Position has h (height) property")
+        T.Assert(pos.HasOwnProp("h"), "Position has h (height property)")
         T.Assert(pos.HasOwnProp("detectMethod"), "Position has detectMethod property")
     }
 }
@@ -76,6 +76,7 @@ class CursorIndicatorTests {
         this.TestInitialization()
         this.TestGetPosition()
         this.TestMouseIdleVisibility()
+        this.TestLanguageChangeWakesMouseFlag()
     }
 
     static TestDefaultConfig() {
@@ -116,6 +117,7 @@ class CursorIndicatorTests {
         T.Assert(indicator.HasOwnProp("lastMouseX"), "Indicator tracks last mouse X")
         T.Assert(indicator.HasOwnProp("lastMouseY"), "Indicator tracks last mouse Y")
         T.Assert(indicator.HasOwnProp("lastMouseMoveTick"), "Indicator tracks last mouse movement time")
+        T.Assert(indicator.HasOwnProp("lastFlagCode"), "Indicator tracks last valid flag code")
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
         T.AssertEqual(indicator.markPainter.scale, 2, "Cursor indicator applies configured image scale")
         T.AssertEqual(indicator.markPainter.opacity, 230, "Cursor indicator applies configured opacity")
@@ -142,5 +144,20 @@ class CursorIndicatorTests {
         T.Assert(!indicator.IsMouseActive(pos, 4000), "Mouse flag hides at 3s idle")
         T.Assert(indicator.IsMouseActive({ x: 101, y: 200 }, 4001), "Mouse movement makes flag visible again")
         T.AssertEqual(indicator.lastMouseMoveTick, 4001, "Mouse movement refreshes idle timer")
+    }
+
+    static TestLanguageChangeWakesMouseFlag() {
+        T.StartSuite("CursorIndicator.LanguageChangeWake")
+
+        indicator := CursorIndicator()
+        pos := { x: 100, y: 200 }
+
+        indicator.IsMouseActive(pos, 1000)
+        T.Assert(!indicator.IsMouseActive(pos, 4000), "Mouse is idle before layout change")
+        T.Assert(indicator.NoteLanguage("ru", 5000), "First valid language wakes indicator")
+        T.Assert(indicator.IsMouseActive(pos, 5001), "Language observation resets idle timeout")
+        T.Assert(!indicator.NoteLanguage("ru", 5100), "Same language does not repeatedly reset idle timeout")
+        T.Assert(indicator.NoteLanguage("us", 5200), "RU to EN change wakes indicator")
+        T.AssertEqual(indicator.lastMouseMoveTick, 5200, "Language change refreshes idle timestamp")
     }
 }
