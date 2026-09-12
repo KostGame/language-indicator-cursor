@@ -6,19 +6,22 @@
 #include lib\utils\Merge.ahk
 
 class LanguageIndicator {
-    static Version := "0.78"
+    static Version := "0.79-kost.1"
 
     __New(cfg?) {
         defaultCfg := {
             caret: {
-                inputCheckPeriod: 50,    ; polling rate of locale + capslock
-                markRepaintPeriod: 16,   ; 16ms ≈ 60Hz, mark follows to the mouse cursor
+                enabled: false,
+                inputCheckPeriod: 50,
+                markRepaintPeriod: 16,
                 markMargin: { x: 1, y: -1 }
             },
             cursor: {
-                inputCheckPeriod: 50,    ; polling rate of locale + capslock 10×/sec
-                markRepaintPeriod: 6,    ; 6ms ≈ 165Hz, mark follows to the mouse cursor
-                markMargin: { x: 2, y: -2, useCursorSize: true }
+                enabled: true,
+                inputCheckPeriod: 50,
+                markRepaintPeriod: 6,
+                markMargin: { x: 18, y: 12, useCursorSize: false },
+                markScale: 2
             }
         }
 
@@ -29,8 +32,10 @@ class LanguageIndicator {
     }
 
     Run() {
-        this.caretIndicator.Run()
-        this.cursorIndicator.Run()
+        if (!this.cfg.caret.HasOwnProp("enabled") or this.cfg.caret.enabled)
+            this.caretIndicator.Run()
+        if (!this.cfg.cursor.HasOwnProp("enabled") or this.cfg.cursor.enabled)
+            this.cursorIndicator.Run()
     }
 }
 
@@ -38,4 +43,4 @@ class LanguageIndicator {
 global app := LanguageIndicator()
 app.Run()
 
-A_IconTip := "Language Indicator v" . LanguageIndicator.Version
+A_IconTip := "Language Indicator Cursor v" . LanguageIndicator.Version
