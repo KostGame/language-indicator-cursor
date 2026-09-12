@@ -6,6 +6,7 @@
 #include ..\image-utils\ImagePainter.ahk
 #include ..\image-utils\UseBase64Image.ahk
 #include ..\utils\UseCached.ahk
+#include ..\utils\RuntimeLog.ahk
 
 class IndicatorBase {
     static SHUTDOWN_REASONS := "^(?i:Logoff|Shutdown)$"
@@ -17,7 +18,6 @@ class IndicatorBase {
         this.markPainter.margin := this.cfg.markMargin
         this.currentMarkObj := ""
 
-        ; Create cached folder check function
         this.folderExistsCache := UseCached(
             () => DirExist(this.cfg.files.folder),
             this.cfg.files.folderExistCheckPeriod
@@ -25,12 +25,21 @@ class IndicatorBase {
     }
 
     Run() {
-        ; inputCheckPeriod  — how often we poll keyboard locale + capslock and decide which mark to use
-        ; markRepaintPeriod — how often we refresh the mark at the current caret/cursor position
-        ;                     (ImagePainter.Paint() short-circuits when position+image are unchanged)
-        SetTimer(() => this.Check(), this.cfg.inputCheckPeriod)
-        SetTimer(() => this.Repaint(), this.cfg.markRepaintPeriod)
+        SetTimer(() => this.SafeCheck(), this.cfg.inputCheckPeriod)
+        SetTimer(() => this.SafeRepaint(), this.cfg.markRepaintPeriod)
         OnExit((reason, code) => this.OnExit(reason, code))
+    }
+
+    SafeCheck() {
+        try this.Check()
+        catch as err
+            RuntimeLogError(Type(this) . ".Check", err)
+    }
+
+    SafeRepaint() {
+        try this.Repaint()
+        catch as err
+            RuntimeLogError(Type(this) . ".Repaint", err)
     }
 
     Check() {
@@ -73,12 +82,10 @@ class IndicatorBase {
         this.PaintMark(this.currentMarkObj)
     }
 
-    ; Abstract method - subclasses must implement
     PaintMark(markObj) {
         throw Error("PaintMark must be implemented by subclass")
     }
 
-    ; Abstract method - subclasses must implement
     GetPosition() {
         throw Error("GetPosition must be implemented by subclass")
     }
