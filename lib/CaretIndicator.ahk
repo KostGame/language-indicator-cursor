@@ -20,7 +20,7 @@ class CaretIndicator extends IndicatorBase {
         markMargin: { x: 6, y: -12 },
         markScale: 2,
         opacity: 179,
-        inputCheckPeriod: 50,
+        inputCheckPeriod: 20,
         markRepaintPeriod: 16,
         positionCacheTtl: 1000,
     }
