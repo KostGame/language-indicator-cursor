@@ -6,8 +6,14 @@
 #include lib\SettingsManager.ahk
 #include lib\utils\Merge.ahk
 
+HideTrayIconOnExit(reason, code) {
+    try A_IconHidden := true
+}
+
+OnExit(HideTrayIconOnExit)
+
 class LanguageIndicator {
-    static Version := "0.79-kost.5"
+    static Version := "0.79-kost.6"
 
     __New(cfg?) {
         defaultCfg := {
