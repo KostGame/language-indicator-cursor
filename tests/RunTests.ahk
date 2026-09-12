@@ -4,6 +4,7 @@
 #include TestFramework.ahk
 #include MarkResolver.test.ahk
 #include UseBase64Image.test.ahk
+#include GetLanguageFlagCode.test.ahk
 #include InputState.test.ahk
 #include Indicators.test.ahk
 #include LanguageIndicator.test.ahk
@@ -20,6 +21,9 @@ RunAllTests() {
     T.Log("")
 
     UseBase64ImageTests.Run()
+    T.Log("")
+
+    GetLanguageFlagCodeTests.Run()
     T.Log("")
 
     InputStateTests.Run()
