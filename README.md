@@ -58,7 +58,7 @@ If a runtime error occurs, a throttled diagnostic log is written to:
 
 The log rotates at roughly 64 KiB to avoid unbounded growth. If `runtime.log` is absent, no contained runtime exception has been recorded in that run.
 
-A runtime-disappearance regression found during prototype testing is tracked in issue #3, including Caramba Switcher last-word conversion. Stable merge/release remains gated on a final Windows smoke/soak test.
+A runtime-disappearance regression found during prototype testing is tracked in issue #3, including Caramba Switcher Double Shift last-word conversion. Stable merge/release remains gated on a final Windows smoke/soak test.
 
 ## Installation
 
@@ -76,9 +76,17 @@ Development builds are currently **unsigned**, so Windows SmartScreen can show `
 
 For a polished public release, the executable should be Authenticode-signed with a trusted code-signing certificate. Rebuilding the EXE changes its hash, so unsigned development builds can trigger SmartScreen again even after an earlier build was allowed. The project intentionally does not attempt to suppress or bypass SmartScreen automatically.
 
+## Code signing policy
+
+See [CODE_SIGNING.md](CODE_SIGNING.md) for the project code signing policy and [PRIVACY.md](PRIVACY.md) for the privacy policy.
+
+The project is preparing an application for SignPath Foundation Open Source Code Signing. Current binaries remain unsigned until the project is accepted and the signing pipeline is activated. If approved, release signing will use a SignPath-managed certificate and GitHub-origin verification rather than storing a private signing key in this repository.
+
 ## Releases
 
 After a stable change is merged to `master`, `.github/workflows/release.yml` runs the Windows tests, compiles the executable, packages the runnable files, reads `LanguageIndicator.Version`, and publishes a versioned GitHub Release. If that version already exists, the workflow leaves the existing release untouched.
+
+The release workflow is being prepared so an approved SignPath signing step can be inserted between compilation and publication.
 
 ## Development
 

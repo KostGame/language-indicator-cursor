@@ -1,3 +1,13 @@
+; Windows version-resource metadata for compiled releases.
+; Keep numeric version metadata aligned with the release generation.
+;@Ahk2Exe-SetName Language Indicator Cursor
+;@Ahk2Exe-SetProductName Language Indicator Cursor
+;@Ahk2Exe-SetDescription RU/EN keyboard language indicator for mouse pointer and text caret
+;@Ahk2Exe-SetCompanyName KostGame
+;@Ahk2Exe-SetVersion 0.79.6.0
+;@Ahk2Exe-SetOrigFilename language-indicator.exe
+;@Ahk2Exe-SetCopyright Copyright (c) 2026 KostGame and contributors; based on yakunins/language-indicator (MIT)
+
 #requires AutoHotkey v2.0
 #singleinstance force
 
