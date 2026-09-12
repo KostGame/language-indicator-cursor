@@ -71,6 +71,7 @@ class CursorIndicatorTests {
         this.TestDefaultConfig()
         this.TestInitialization()
         this.TestGetPosition()
+        this.TestMouseIdleVisibility()
     }
 
     static TestDefaultConfig() {
@@ -85,6 +86,7 @@ class CursorIndicatorTests {
         T.Assert(cfg.HasOwnProp("inputCheckPeriod"), "Config has inputCheckPeriod property")
         T.Assert(cfg.HasOwnProp("markRepaintPeriod"), "Config has markRepaintPeriod property")
         T.Assert(cfg.HasOwnProp("mousePositionPrediction"), "Config has mousePositionPrediction property")
+        T.Assert(cfg.HasOwnProp("mouseIdleHideAfter"), "Config has mouseIdleHideAfter property")
 
         T.AssertEqual(cfg.files.capslockSuffix, "", "Caps Lock does not select another cursor flag")
         T.Assert(cfg.files.extensions.Length == 1, "Only PNG floating flags are supported")
@@ -92,6 +94,7 @@ class CursorIndicatorTests {
         T.Assert(InStr(cfg.files.folder, "img\flags-png") > 0, "Cursor flags come from img/flags-png")
         T.AssertEqual(cfg.markScale, 2, "Flags are displayed at 2x source size")
         T.AssertEqual(cfg.markMargin.useCursorSize, false, "Placement is independent of cursor type")
+        T.AssertEqual(cfg.mouseIdleHideAfter, 3000, "Mouse flag hides after 3000ms idle")
         T.AssertEqual(cfg.inputCheckPeriod, 50, "Default inputCheckPeriod is 50")
         T.AssertEqual(cfg.markRepaintPeriod, 6, "Default markRepaintPeriod is 6")
     }
@@ -104,6 +107,9 @@ class CursorIndicatorTests {
         T.Assert(indicator.HasOwnProp("cfg"), "Indicator has cfg")
         T.Assert(indicator.HasOwnProp("markPainter"), "Indicator has markPainter (ImagePainter)")
         T.Assert(indicator.HasOwnProp("currentMarkObj"), "Indicator has currentMarkObj")
+        T.Assert(indicator.HasOwnProp("lastMouseX"), "Indicator tracks last mouse X")
+        T.Assert(indicator.HasOwnProp("lastMouseY"), "Indicator tracks last mouse Y")
+        T.Assert(indicator.HasOwnProp("lastMouseMoveTick"), "Indicator tracks last mouse movement time")
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
         T.AssertEqual(indicator.markPainter.scale, 2, "Cursor indicator applies configured image scale")
     }
@@ -116,5 +122,18 @@ class CursorIndicatorTests {
 
         T.Assert(pos.HasOwnProp("x"), "Position has x property")
         T.Assert(pos.HasOwnProp("y"), "Position has y property")
+    }
+
+    static TestMouseIdleVisibility() {
+        T.StartSuite("CursorIndicator.MouseIdleVisibility")
+
+        indicator := CursorIndicator()
+        pos := { x: 100, y: 200 }
+
+        T.Assert(indicator.IsMouseActive(pos, 1000), "First observed mouse position is active")
+        T.Assert(indicator.IsMouseActive(pos, 3999), "Mouse flag remains visible before 3s idle")
+        T.Assert(!indicator.IsMouseActive(pos, 4000), "Mouse flag hides at 3s idle")
+        T.Assert(indicator.IsMouseActive({ x: 101, y: 200 }, 4001), "Mouse movement makes flag visible again")
+        T.AssertEqual(indicator.lastMouseMoveTick, 4001, "Mouse movement refreshes idle timer")
     }
 }
