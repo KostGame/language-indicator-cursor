@@ -5,7 +5,7 @@
 #include lib\SettingsManager.ahk
 #include lib\AppConfig.ahk
 #include lib\utils\Merge.ahk
-#include lib\runtime\ProcessIsolation.ahk
+#include lib\runtime\CaretWorkerRuntime.ahk
 
 class LanguageIndicator {
     static Version := "0.79-kost.8-rc4"
@@ -22,9 +22,6 @@ class LanguageIndicator {
     }
 
     Run() {
-        ; Mouse tracking deliberately stays in the tray/main process. Caret
-        ; accessibility probing runs in a separate worker so a stuck target
-        ; application cannot starve the mouse timers or the tray UI.
         if (!this.cfg.cursor.HasOwnProp("enabled") or this.cfg.cursor.enabled)
             this.cursorIndicator.Run()
 
