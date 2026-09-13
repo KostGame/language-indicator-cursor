@@ -8,6 +8,7 @@ class ImagePainter {
         this.pictureHwnd := 0
         this.windowVisible := false
         this.windowCreatedTick := 0
+        this.windowTitle := "LanguageIndicatorOverlay"
         this.healthRefreshPeriod := 10000
         this.margin := { x: 0, y: 0 }
         this.scale := 1
@@ -223,7 +224,7 @@ class ImagePainter {
         this.window := Gui("-Caption +AlwaysOnTop +ToolWindow -Border -DPIScale -Resize +E0x20")
         this.window.MarginX := 0
         this.window.MarginY := 0
-        this.window.Title := ""
+        this.window.Title := this.windowTitle
 
         pictureOptions := "x0 y0 w" . this.current.w . " h" . this.current.h
         this.picture := this.window.Add("Picture", pictureOptions, this.current.image)
