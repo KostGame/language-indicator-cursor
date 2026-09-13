@@ -37,7 +37,7 @@ class CaretIndicatorTests {
         T.AssertEqual(cfg.markMargin.y, -12, "Caret flag is raised above typed text by default")
         T.AssertEqual(cfg.inputCheckPeriod, 20, "Default inputCheckPeriod is 20")
         T.AssertEqual(cfg.markRepaintPeriod, 16, "Default markRepaintPeriod is 16")
-        T.AssertEqual(cfg.positionCacheTtl, 1000, "Default positionCacheTtl is 1000")
+        T.AssertEqual(cfg.positionCacheTtl, 120, "Caret position cache expires quickly after focus changes")
     }
 
     static TestInitialization() {
