@@ -103,16 +103,21 @@ TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
         NumPut("uchar", 0x9B, iid, 14)
         NumPut("uchar", 0x71, iid, 15)
 
-        acc := ComValue(9, 0)
+        ; AccessibleObjectFromWindow returns a raw IAccessible* through an
+        ; output pointer. rc4 incorrectly passed a ComValue as that output and
+        ; then tried to read a non-existent .Ptr property from it. Keep the raw
+        ; pointer as an integer first, validate it, then wrap it as VT_DISPATCH.
+        pAcc := 0
         hr := DllCall("oleacc\AccessibleObjectFromWindow"
             , "ptr", hwnd
             , "uint", idObject
             , "ptr", iid
-            , "ptr*", acc
+            , "ptr*", &pAcc
             , "int")
-        if hr != 0 or !acc.Ptr
+        if hr != 0 or !pAcc
             return false
 
+        acc := ComValue(9, pAcc, 1)
         x := Buffer(4), y := Buffer(4), w := Buffer(4), h := Buffer(4)
         try acc.accLocation(
             ComValue(0x4003, x.Ptr, 1),
