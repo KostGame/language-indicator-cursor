@@ -9,6 +9,7 @@
 #include InputState.test.ahk
 #include ProcessIntegrity.test.ahk
 #include Indicators.test.ahk
+#include CaretOverlayLifecycle.test.ahk
 #include LanguageIndicator.test.ahk
 #include SettingsManager.test.ahk
 
@@ -44,6 +45,9 @@ RunAllTests() {
 
         ; Run integration tests
         CaretIndicatorTests.Run()
+        T.Log("")
+
+        CaretOverlayLifecycleTests.Run()
         T.Log("")
 
         CursorIndicatorTests.Run()
