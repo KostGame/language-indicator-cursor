@@ -1,11 +1,11 @@
 /*
 Safe caret-position detector for the reliability fork.
 
-Most applications use cheap Win32/MSAA probes. Windows Terminal is different:
-its CASCADIA host does not reliably expose a native Win32 caret, so its caret is
-read through UI Automation TextPattern selection. Because caret detection runs
-inside the isolated worker process, a stuck accessibility provider can be
-recovered by the supervisor watchdog without freezing the mouse indicator.
+The detector deliberately avoids the upstream remote-thread hook fallback.
+Modern text hosts such as Chromium/Electron and Windows Terminal are handled
+through UI Automation inside the isolated caret worker. TextPattern2 is
+preferred because GetCaretRange also reports whether the caret is actually
+active, which lets us remove stale overlays when focus leaves a text field.
 */
 #requires AutoHotkey v2.0
 
@@ -26,22 +26,27 @@ GetCaretRectSafe(&left?, &top?, &right?, &bottom?, &detectMethod?) {
     className := "unknown"
     try className := WinGetClass(hwnd)
 
+    ; Prefer UIA for modern hosts. Their native Win32/MSAA caret can be absent or
+    ; stale even while the actual edit control lives deeper in the accessibility
+    ; tree. TextPattern2 gives us an authoritative isActive signal when present.
+    if IsModernTextHostClass(className) {
+        authoritativeInactive := false
+        if TryUiaFocusedCaret(&left, &top, &right, &bottom, &authoritativeInactive) {
+            detectMethod := "isolated:UIA-focused-caret (className:" . className . ")"
+            return true
+        }
+        if authoritativeInactive {
+            detectMethod := "failure (UIA caret inactive className:" . className . ")"
+            return false
+        }
+    }
+
     if TryGuiCaret(hwnd, &left, &top, &right, &bottom) {
         detectMethod := "safe:GetGUIThreadInfo (className:" . className . ")"
         return true
     }
 
-    ; Windows Terminal's CASCADIA host commonly has no native Win32 caret.
-    ; TextPattern2/GetCaretRange is not required here: Terminal exposes the
-    ; cursor as the TextPattern selection when there is no actual selection.
-    if IsWindowsTerminalCaretClass(className)
-        and TryWindowsTerminalUiaCaret(&left, &top, &right, &bottom) {
-        detectMethod := "isolated:UIA-TextPattern-Selection (className:" . className . ")"
-        return true
-    }
-
-    ; Browser content controls often do not expose a native Win32 caret, so keep
-    ; the MSAA fallback only for well-known browser window classes.
+    ; Keep MSAA as a final lightweight compatibility fallback for browser hosts.
     if IsBrowserCaretClass(className) and TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
         detectMethod := "safe:MSAA (className:" . className . ")"
         return true
@@ -49,6 +54,10 @@ GetCaretRectSafe(&left?, &top?, &right?, &bottom?, &detectMethod?) {
 
     detectMethod := "failure (safe-only className:" . className . ")"
     return false
+}
+
+IsModernTextHostClass(className) {
+    return IsWindowsTerminalCaretClass(className) or IsBrowserCaretClass(className)
 }
 
 IsWindowsTerminalCaretClass(className) {
@@ -93,32 +102,65 @@ TryGuiCaret(hwnd, &left, &top, &right, &bottom) {
     return (left != 0 or top != 0 or right != 0 or bottom != 0)
 }
 
-TryWindowsTerminalUiaCaret(&left, &top, &right, &bottom) {
+TryUiaFocusedCaret(&left, &top, &right, &bottom, &authoritativeInactive) {
+    authoritativeInactive := false
+
     try {
-        ; IUIAutomation
         uia := ComObject("{E22AD333-B25F-460C-83D0-0581107395C9}",
             "{30CBE57D-D9D0-452A-AB13-7AC5AC4825EE}")
 
-        ; CreateCacheRequest
         pCache := 0
-        ComCall(20, uia, "ptr*", &pCache)
+        ComCall(20, uia, "ptr*", &pCache) ; IUIAutomation::CreateCacheRequest
         if !pCache
             return false
         cacheRequest := ComValue(13, pCache, 1)
 
-        ; AddPattern(UIA_TextPatternId = 10014)
-        ComCall(4, cacheRequest, "ptr", 10014)
+        ComCall(4, cacheRequest, "ptr", 10014) ; UIA_TextPatternId
+        ComCall(4, cacheRequest, "ptr", 10024) ; UIA_TextPattern2Id
 
-        ; GetFocusedElementBuildCache
         pFocused := 0
-        ComCall(12, uia, "ptr", cacheRequest, "ptr*", &pFocused)
+        ComCall(12, uia, "ptr", cacheRequest, "ptr*", &pFocused) ; GetFocusedElementBuildCache
         if !pFocused
             return false
         focused := ComValue(13, pFocused, 1)
 
-        iidTextPattern := GuidBuffer("{32EBA289-3583-42C9-9C59-3B6D9A1E9B6A}")
+        ; Prefer TextPattern2. GetCaretRange returns both the caret range and an
+        ; isActive flag. FALSE is authoritative: the text provider may remember
+        ; an old caret, but it no longer owns keyboard focus, so hide the flag.
+        iidTextPattern2 := GuidBuffer("{506A921A-FCC9-409F-B23B-37EB74106872}")
+        pPattern2 := 0
+        ComCall(15, focused,
+            "int", 10024,
+            "ptr", iidTextPattern2,
+            "ptr*", &pPattern2)
 
-        ; GetCachedPatternAs(UIA_TextPatternId, IID_IUIAutomationTextPattern)
+        if pPattern2 {
+            textPattern2 := ComValue(13, pPattern2, 1)
+            isActive := 0
+            pRange := 0
+            hr := ComCall(10, textPattern2,
+                "int*", &isActive,
+                "ptr*", &pRange,
+                "int")
+
+            if hr == 0 {
+                if !isActive {
+                    authoritativeInactive := true
+                    return false
+                }
+
+                if pRange {
+                    range := ComValue(13, pRange, 1)
+                    if TryResolveUiaCaretRange(range, &left, &top, &right, &bottom)
+                        return true
+                }
+            }
+        }
+
+        ; Older providers may expose only TextPattern. Because we obtained the
+        ; element through GetFocusedElementBuildCache, a valid selection range is
+        ; still a useful insertion-point fallback for Chromium/Electron/Terminal.
+        iidTextPattern := GuidBuffer("{32EBA289-3583-42C9-9C59-3B6D9A1E9B6A}")
         pPattern := 0
         ComCall(15, focused,
             "int", 10014,
@@ -128,10 +170,8 @@ TryWindowsTerminalUiaCaret(&left, &top, &right, &bottom) {
             return false
         textPattern := ComValue(13, pPattern, 1)
 
-        ; GetSelection. Windows Terminal returns a degenerate range at the
-        ; cursor position when there is no real text selection.
         pRanges := 0
-        ComCall(5, textPattern, "ptr*", &pRanges)
+        ComCall(5, textPattern, "ptr*", &pRanges) ; GetSelection
         if !pRanges
             return false
         ranges := ComValue(13, pRanges, 1)
@@ -147,23 +187,30 @@ TryWindowsTerminalUiaCaret(&left, &top, &right, &bottom) {
             return false
         range := ComValue(13, pRange, 1)
 
-        ; Collapse a real selection to its end so the marker tracks the insertion
-        ; point rather than the beginning of highlighted text.
+        ; Collapse a real selection to its end. Degenerate selections are left
+        ; at the insertion point.
         try ComCall(15, range, "int", 0, "ptr", range, "int", 1)
-
-        ; A degenerate range has no bounding rectangle. Expanding to one
-        ; character makes Terminal expose usable screen coordinates.
-        ComCall(6, range, "int", 0) ; TextUnit_Character
-        if TryReadUiaRangeRect(range, false, &left, &top, &right, &bottom)
-            return true
-
-        ; At end-of-line/document character expansion can fail. Expand to line
-        ; and use its right edge as the insertion point.
-        ComCall(6, range, "int", 3) ; TextUnit_Line
-        return TryReadUiaRangeRect(range, true, &left, &top, &right, &bottom)
+        return TryResolveUiaCaretRange(range, &left, &top, &right, &bottom)
     } catch {
         return false
     }
+}
+
+TryResolveUiaCaretRange(range, &left, &top, &right, &bottom) {
+    ; Some providers return a visible rectangle even for a degenerate caret.
+    if TryReadUiaRangeRect(range, false, &left, &top, &right, &bottom)
+        return true
+
+    ; Otherwise expand the zero-length range to one character and use its left
+    ; edge as the insertion point.
+    try ComCall(6, range, "int", 0) ; TextUnit_Character
+    if TryReadUiaRangeRect(range, false, &left, &top, &right, &bottom)
+        return true
+
+    ; End-of-line/document can reject character expansion. Expand to line and
+    ; use the right edge instead.
+    try ComCall(6, range, "int", 3) ; TextUnit_Line
+    return TryReadUiaRangeRect(range, true, &left, &top, &right, &bottom)
 }
 
 TryReadUiaRangeRect(range, useRightEdge, &left, &top, &right, &bottom) {
@@ -195,7 +242,7 @@ TryReadUiaRangeRect(range, useRightEdge, &left, &top, &right, &bottom) {
 
 GuidBuffer(guidText) {
     buf := Buffer(16, 0)
-    if DllCall("ole32\\CLSIDFromString", "wstr", guidText, "ptr", buf, "int") != 0
+    if DllCall("ole32\CLSIDFromString", "wstr", guidText, "ptr", buf, "int") != 0
         throw Error("Invalid GUID: " . guidText)
     return buf
 }
@@ -222,7 +269,7 @@ TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
         NumPut("uchar", 0x71, iid, 15)
 
         pAcc := 0
-        hr := DllCall("oleacc\\AccessibleObjectFromWindow"
+        hr := DllCall("oleacc\AccessibleObjectFromWindow"
             , "ptr", hwnd
             , "uint", idObject
             , "ptr", iid
