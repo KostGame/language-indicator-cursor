@@ -1,4 +1,5 @@
 #requires AutoHotkey v2.0
+#Warn All, StdOut
 #singleinstance off
 
 #include lib\CaretIndicator.ahk
