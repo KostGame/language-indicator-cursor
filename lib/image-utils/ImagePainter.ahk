@@ -9,6 +9,7 @@ class ImagePainter {
         this.windowVisible := false
         this.windowCreatedTick := 0
         this.windowTitle := "LanguageIndicatorOverlay"
+        this.hideBeforeMove := false
         this.healthRefreshPeriod := 10000
         this.margin := { x: 0, y: 0 }
         this.scale := 1
@@ -195,7 +196,6 @@ class ImagePainter {
             height := Abs(NumGet(bm, 8, "Int"))
             return width > 0 and height > 0
         } finally {
-            ; LoadPicture reports 0 for HBITMAP, 1 for HICON and 2 for HCURSOR.
             if imageType == 0
                 DllCall("DeleteObject", "Ptr", handle)
             else
@@ -236,6 +236,15 @@ class ImagePainter {
         this._dropStaleWindow()
         if this.window == ""
             return
+
+        movingVisibleWindow := this.windowVisible and
+            (this.current.x != this.prev.x or this.current.y != this.prev.y)
+
+        if this.hideBeforeMove and movingVisibleWindow {
+            this.HideWindow()
+            if this.window == ""
+                return
+        }
 
         halfHeight := Floor(this.current.h / 2)
         posX := this.current.x + this.margin.x
