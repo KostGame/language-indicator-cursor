@@ -22,9 +22,9 @@ class CaretWorkerHeartbeat {
             return
         }
         try {
-            file := FileOpen(this.heartbeatPath, "w")
-            file.Write(this.generation . "|" . this.Tick())
-            file.Close()
+            heartbeatFile := FileOpen(this.heartbeatPath, "w")
+            heartbeatFile.Write(this.generation . "|" . this.Tick())
+            heartbeatFile.Close()
         }
     }
 
@@ -128,15 +128,15 @@ class CaretWorkerSupervisor {
     }
 
     NewGeneration() {
-        return A_Pid . "-" . this.Tick() . "-" . Random(1000, 9999)
+        return this.Tick() . "-" . Random(100000, 999999)
     }
 
     WriteControl(value) {
         try {
             DirCreate(this.dir)
-            file := FileOpen(this.controlPath, "w")
-            file.Write(value)
-            file.Close()
+            controlFile := FileOpen(this.controlPath, "w")
+            controlFile.Write(value)
+            controlFile.Close()
         }
     }
 
