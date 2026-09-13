@@ -3,9 +3,10 @@ Safe caret-position detector for the reliability fork.
 
 The detector deliberately avoids the upstream remote-thread hook fallback.
 Modern text hosts such as Chromium/Electron and Windows Terminal are handled
-through UI Automation inside the isolated caret worker. TextPattern2 is
-preferred because GetCaretRange also reports whether the caret is actually
-active, which lets us remove stale overlays when focus leaves a text field.
+through UI Automation inside the isolated caret worker. Once UI Automation has
+successfully resolved the focused element, that result is authoritative: if the
+focused element no longer exposes an active text caret, legacy Win32/MSAA
+fallbacks are not allowed to resurrect a stale caret from the previous field.
 */
 #requires AutoHotkey v2.0
 
@@ -26,17 +27,17 @@ GetCaretRectSafe(&left?, &top?, &right?, &bottom?, &detectMethod?) {
     className := "unknown"
     try className := WinGetClass(hwnd)
 
-    ; Prefer UIA for modern hosts. Their native Win32/MSAA caret can be absent or
-    ; stale even while the actual edit control lives deeper in the accessibility
-    ; tree. TextPattern2 gives us an authoritative isActive signal when present.
+    ; Prefer UIA for modern hosts. Their native Win32/MSAA caret can remain stale
+    ; after navigation or focus loss. Once UIA can resolve the focused element,
+    ; its absence of an active text caret is authoritative and must hide the flag.
     if IsModernTextHostClass(className) {
-        authoritativeInactive := false
-        if TryUiaFocusedCaret(&left, &top, &right, &bottom, &authoritativeInactive) {
+        uiaAuthoritative := false
+        if TryUiaFocusedCaret(&left, &top, &right, &bottom, &uiaAuthoritative) {
             detectMethod := "isolated:UIA-focused-caret (className:" . className . ")"
             return true
         }
-        if authoritativeInactive {
-            detectMethod := "failure (UIA caret inactive className:" . className . ")"
+        if uiaAuthoritative {
+            detectMethod := "failure (UIA authoritative no active caret className:" . className . ")"
             return false
         }
     }
@@ -46,7 +47,8 @@ GetCaretRectSafe(&left?, &top?, &right?, &bottom?, &detectMethod?) {
         return true
     }
 
-    ; Keep MSAA as a final lightweight compatibility fallback for browser hosts.
+    ; Keep MSAA only as a compatibility fallback when UIA itself could not resolve
+    ; a focused element. It must never override an authoritative UIA no-caret result.
     if IsBrowserCaretClass(className) and TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
         detectMethod := "safe:MSAA (className:" . className . ")"
         return true
@@ -102,8 +104,8 @@ TryGuiCaret(hwnd, &left, &top, &right, &bottom) {
     return (left != 0 or top != 0 or right != 0 or bottom != 0)
 }
 
-TryUiaFocusedCaret(&left, &top, &right, &bottom, &authoritativeInactive) {
-    authoritativeInactive := false
+TryUiaFocusedCaret(&left, &top, &right, &bottom, &authoritative) {
+    authoritative := false
 
     try {
         uia := ComObject("{E22AD333-B25F-460C-83D0-0581107395C9}",
@@ -124,9 +126,14 @@ TryUiaFocusedCaret(&left, &top, &right, &bottom, &authoritativeInactive) {
             return false
         focused := ComValue(13, pFocused, 1)
 
+        ; From this point onward UIA has successfully resolved the current focused
+        ; element. No text pattern / no active caret therefore means "hide", not
+        ; "fall back to a possibly stale Win32/MSAA caret".
+        authoritative := true
+
         ; Prefer TextPattern2. GetCaretRange returns both the caret range and an
-        ; isActive flag. FALSE is authoritative: the text provider may remember
-        ; an old caret, but it no longer owns keyboard focus, so hide the flag.
+        ; isActive flag. FALSE means the provider remembers a caret but no longer
+        ; owns keyboard focus.
         iidTextPattern2 := GuidBuffer("{506A921A-FCC9-409F-B23B-37EB74106872}")
         pPattern2 := 0
         ComCall(15, focused,
@@ -144,22 +151,24 @@ TryUiaFocusedCaret(&left, &top, &right, &bottom, &authoritativeInactive) {
                 "int")
 
             if hr == 0 {
-                if !isActive {
-                    authoritativeInactive := true
+                if !isActive
                     return false
-                }
 
                 if pRange {
                     range := ComValue(13, pRange, 1)
                     if TryResolveUiaCaretRange(range, &left, &top, &right, &bottom)
                         return true
                 }
+
+                ; TextPattern2 answered authoritatively but did not yield a usable
+                ; caret rectangle. Fail closed for this frame.
+                return false
             }
         }
 
-        ; Older providers may expose only TextPattern. Because we obtained the
-        ; element through GetFocusedElementBuildCache, a valid selection range is
-        ; still a useful insertion-point fallback for Chromium/Electron/Terminal.
+        ; Older providers may expose only TextPattern. Because the element was
+        ; obtained through GetFocusedElementBuildCache, a valid selection range is
+        ; still a useful insertion-point fallback.
         iidTextPattern := GuidBuffer("{32EBA289-3583-42C9-9C59-3B6D9A1E9B6A}")
         pPattern := 0
         ComCall(15, focused,
