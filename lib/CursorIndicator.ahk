@@ -8,6 +8,8 @@
 ; - resolves RU/EN from the actual Windows LANGID, not discovery order
 ; - survives transient helper-window/layout states from third-party switchers
 ; - ignores Caps Lock for flag selection
+; - destroys stale mouse overlay windows on idle/invalid states to avoid ghosts
+; - hides the visible overlay before repositioning it to avoid DWM move trails
 
 #requires AutoHotkey v2.0
 
@@ -42,6 +44,7 @@ class CursorIndicator extends IndicatorBase {
         this.markPainter.scale := cfg.markScale
         this.markPainter.opacity := cfg.opacity
         this.markPainter.windowTitle := "LanguageIndicatorMouseOverlay"
+        this.markPainter.hideBeforeMove := true
         this.lastMouseX := ""
         this.lastMouseY := ""
         this.lastMouseMoveTick := A_TickCount
@@ -58,9 +61,7 @@ class CursorIndicator extends IndicatorBase {
 
         filePath := this.cfg.files.folder . flagCode . ".png"
         if !FileExist(filePath) {
-            this.currentMarkObj := ""
-            this.markPainter.HideWindow()
-            this.markPainter.Clear()
+            this.DismissOverlay(true)
             return
         }
 
@@ -107,21 +108,27 @@ class CursorIndicator extends IndicatorBase {
         return (nowTick - this.lastMouseMoveTick) < this.cfg.mouseIdleHideAfter
     }
 
+    DismissOverlay(clearMark := false) {
+        this.markPainter.RemoveWindow()
+        this.markPainter.ClearAll()
+        if clearMark
+            this.currentMarkObj := ""
+    }
+
     PaintMark(markObj) {
         if (!markObj.image or 10 > StrLen(markObj.image)) {
-            this.markPainter.HideWindow()
-            this.markPainter.Clear()
+            this.DismissOverlay(true)
             return
         }
 
         pos := this.GetPosition()
         if (pos.x == -1 or pos.y == -1) {
-            this.markPainter.HideWindow()
+            this.DismissOverlay(false)
             return
         }
 
         if !this.IsMouseActive(pos) {
-            this.markPainter.HideWindow()
+            this.DismissOverlay(false)
             return
         }
 

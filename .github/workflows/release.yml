@@ -91,10 +91,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = '${{ steps.version.outputs.tag }}'
+          $version = '${{ steps.version.outputs.version }}'
           $zip = '${{ steps.package.outputs.zip }}'
           gh release view $tag --repo '${{ github.repository }}' *> $null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Release $tag already exists; nothing to do."
             exit 0
           }
-          gh release create $tag $zip --repo '${{ github.repository }}' --target '${{ github.sha }}' --title "Language Indicator Cursor $tag" --generate-notes
+
+          $releaseArgs = @(
+            'release', 'create', $tag, $zip,
+            '--repo', '${{ github.repository }}',
+            '--target', '${{ github.sha }}',
+            '--title', "Language Indicator Cursor $tag",
+            '--generate-notes'
+          )
+          if ($version -match '-(beta|rc)(\.|$)') {
+            $releaseArgs += '--prerelease'
+          }
+          & gh @releaseArgs
+          if ($LASTEXITCODE -ne 0) {
+            throw "gh release create failed with exit code $LASTEXITCODE"
+          }
