@@ -32,6 +32,7 @@ class CaretIndicator extends IndicatorBase {
         super.__New(cfg)
         this.markPainter.scale := cfg.markScale
         this.markPainter.opacity := cfg.opacity
+        this.markPainter.windowTitle := "LanguageIndicatorCaretOverlay"
         this.getCachedPosition := UseCachedWhileIdle(
             () => this.ComputePosition(),
             this.cfg.positionCacheTtl
