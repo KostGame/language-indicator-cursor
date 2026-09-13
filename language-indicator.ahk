@@ -1,4 +1,5 @@
 #requires AutoHotkey v2.0
+#Warn All, StdOut
 #singleinstance force
 
 #include lib\CursorIndicator.ahk
