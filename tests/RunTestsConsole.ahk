@@ -7,7 +7,9 @@
 #include UseCachedWhileIdle.test.ahk
 #include GetLanguageFlagCode.test.ahk
 #include InputState.test.ahk
+#include ProcessIntegrity.test.ahk
 #include Indicators.test.ahk
+#include CaretOverlayLifecycle.test.ahk
 #include LanguageIndicator.test.ahk
 #include SettingsManager.test.ahk
 
@@ -38,8 +40,14 @@ RunAllTests() {
         InputStateTests.Run()
         T.Log("")
 
+        ProcessIntegrityTests.Run()
+        T.Log("")
+
         ; Run integration tests
         CaretIndicatorTests.Run()
+        T.Log("")
+
+        CaretOverlayLifecycleTests.Run()
         T.Log("")
 
         CursorIndicatorTests.Run()

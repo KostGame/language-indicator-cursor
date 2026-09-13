@@ -37,7 +37,7 @@ class CaretIndicatorTests {
         T.AssertEqual(cfg.markMargin.y, -12, "Caret flag is raised above typed text by default")
         T.AssertEqual(cfg.inputCheckPeriod, 20, "Default inputCheckPeriod is 20")
         T.AssertEqual(cfg.markRepaintPeriod, 16, "Default markRepaintPeriod is 16")
-        T.AssertEqual(cfg.positionCacheTtl, 1000, "Default positionCacheTtl is 1000")
+        T.AssertEqual(cfg.positionCacheTtl, 120, "Caret position cache expires quickly after focus changes")
     }
 
     static TestInitialization() {
@@ -52,6 +52,8 @@ class CaretIndicatorTests {
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
         T.AssertEqual(indicator.markPainter.scale, 2, "Caret indicator applies configured image scale")
         T.AssertEqual(indicator.markPainter.opacity, 179, "Caret indicator applies configured opacity")
+        T.AssertEqual(indicator.markPainter.windowTitle, "LanguageIndicatorCaretOverlay", "Caret overlay has unique title")
+        T.Assert(indicator.markPainter.hideBeforeMove, "Caret overlay is hidden before rapid position moves")
     }
 
     static TestGetPosition() {
@@ -121,6 +123,8 @@ class CursorIndicatorTests {
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
         T.AssertEqual(indicator.markPainter.scale, 2, "Cursor indicator applies configured image scale")
         T.AssertEqual(indicator.markPainter.opacity, 230, "Cursor indicator applies configured opacity")
+        T.AssertEqual(indicator.markPainter.windowTitle, "LanguageIndicatorMouseOverlay", "Mouse overlay has unique title")
+        T.Assert(!indicator.markPainter.hideBeforeMove, "Mouse overlay keeps direct movement behavior")
     }
 
     static TestGetPosition() {

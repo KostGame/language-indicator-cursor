@@ -41,6 +41,7 @@ class CursorIndicator extends IndicatorBase {
 
         this.markPainter.scale := cfg.markScale
         this.markPainter.opacity := cfg.opacity
+        this.markPainter.windowTitle := "LanguageIndicatorMouseOverlay"
         this.lastMouseX := ""
         this.lastMouseY := ""
         this.lastMouseMoveTick := A_TickCount
@@ -50,10 +51,6 @@ class CursorIndicator extends IndicatorBase {
     Check() {
         localeId := GetInputLocaleId()
         flagCode := LanguageFlagResolver.Resolve(localeId)
-
-        ; Before any supported RU/EN layout has ever been observed there is no
-        ; honest marker to show. Once a valid layout is known, resolver keeps it
-        ; through transient helper-window/layout states (e.g. word correction).
         if (flagCode == "")
             return
 

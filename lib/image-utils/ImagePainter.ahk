@@ -1,12 +1,16 @@
-; Displays images in transparent always-on-top windows for visual indicators
+; Reliable native overlay renderer for the floating language flags.
 #requires AutoHotkey v2.0
-#include ImagePut.ahk
 
 class ImagePainter {
     __New() {
-        this.bgColor := "ffffff"
         this.window := ""
+        this.picture := ""
+        this.pictureHwnd := 0
         this.windowVisible := false
+        this.windowCreatedTick := 0
+        this.windowTitle := "LanguageIndicatorOverlay"
+        this.hideBeforeMove := false
+        this.healthRefreshPeriod := 10000
         this.margin := { x: 0, y: 0 }
         this.scale := 1
         this.opacity := 255
@@ -34,11 +38,11 @@ class ImagePainter {
         this._dropStaleWindow()
         imageChanged := this._hasImageChanged()
 
+        if (this.window != "" and (imageChanged or this._shouldHealthRefresh()))
+            this.RemoveWindow()
+
         if this._canSkipRepaint(imageChanged)
             return
-
-        if (this.window != "" and imageChanged)
-            this.RemoveWindow()
 
         if !this._loadDimensions(imageChanged)
             return
@@ -49,30 +53,41 @@ class ImagePainter {
         this._showAtPosition()
     }
 
+    HealthCheck() {
+        if this.window == ""
+            return
+
+        this._dropStaleWindow()
+        if (this.window != "" and this._shouldHealthRefresh())
+            this.RemoveWindow()
+    }
+
+    ForceRebuild() {
+        this.RemoveWindow()
+    }
+
     RemoveWindow() {
-        if this.window != "" {
+        if this.window != ""
             try this.window.Destroy()
-            this.window := ""
-            this.windowVisible := false
-        }
+        this._forgetWindow()
     }
 
     HideWindow() {
-        if this.window != "" {
-            if !this._windowExists() {
-                this.window := ""
-                this.windowVisible := false
-                return
-            }
-            try this.window.Hide()
-            catch {
-                this.window := ""
-            }
-            this.windowVisible := false
-        }
-    }
+        if this.window == ""
+            return
 
-    ; Private methods
+        if !this._windowExists() {
+            this._forgetWindow()
+            return
+        }
+
+        try this.window.Hide()
+        catch {
+            this._forgetWindow()
+            return
+        }
+        this.windowVisible := false
+    }
 
     _windowExists() {
         if this.window == ""
@@ -85,11 +100,38 @@ class ImagePainter {
         }
     }
 
+    _pictureExists() {
+        if !this.pictureHwnd
+            return false
+        try return DllCall("IsWindow", "Ptr", this.pictureHwnd, "Int") != 0
+        catch
+            return false
+    }
+
+    _forgetWindow() {
+        this.window := ""
+        this.picture := ""
+        this.pictureHwnd := 0
+        this.windowVisible := false
+        this.windowCreatedTick := 0
+    }
+
     _dropStaleWindow() {
-        if this.window != "" and !this._windowExists() {
-            this.window := ""
-            this.windowVisible := false
-        }
+        if this.window == ""
+            return
+
+        if !this._windowExists() or !this._pictureExists()
+            this.RemoveWindow()
+    }
+
+    _shouldHealthRefresh() {
+        if (this.window == "" or !this.windowCreatedTick)
+            return false
+        return (this._tick() - this.windowCreatedTick) >= this.healthRefreshPeriod
+    }
+
+    _tick() {
+        return DllCall("GetTickCount64", "UInt64")
     }
 
     _hasValidState() {
@@ -103,6 +145,7 @@ class ImagePainter {
     _hasImageChanged() {
         if (this.current.name != this.prev.name or this.current.image != this.prev.image)
             return true
+
         if (this.current.image != "" and FileExist(this.current.image)) {
             modTime := FileGetTime(this.current.image)
             if (this.current.HasOwnProp("modTime") and this.current.modTime != modTime) {
@@ -115,7 +158,7 @@ class ImagePainter {
     }
 
     _canSkipRepaint(imageChanged) {
-        if (this.window == "" or !this.windowVisible or !this._windowExists())
+        if (this.window == "" or !this.windowVisible or !this._windowExists() or !this._pictureExists())
             return false
         return (this.current.x == this.prev.x and
             this.current.y == this.prev.y and
@@ -127,14 +170,36 @@ class ImagePainter {
             return true
 
         try {
-            sourceW := ImageWidth(this.current.image)
-            sourceH := ImageHeight(this.current.image)
+            sourceW := 0, sourceH := 0
+            if !this._readBitmapDimensions(this.current.image, &sourceW, &sourceH)
+                return false
             this.current.w := Max(1, Round(sourceW * this.scale))
             this.current.h := Max(1, Round(sourceH * this.scale))
             return true
         } catch {
             this.Clear()
             return false
+        }
+    }
+
+    _readBitmapDimensions(path, &width, &height) {
+        imageType := 0
+        handle := LoadPicture(path, "", &imageType)
+        if !handle
+            return false
+
+        try {
+            bm := Buffer(A_PtrSize == 8 ? 32 : 24, 0)
+            if !DllCall("GetObject", "Ptr", handle, "Int", bm.Size, "Ptr", bm, "Int")
+                return false
+            width := NumGet(bm, 4, "Int")
+            height := Abs(NumGet(bm, 8, "Int"))
+            return width > 0 and height > 0
+        } finally {
+            if imageType == 0
+                DllCall("DeleteObject", "Ptr", handle)
+            else
+                DllCall("DestroyIcon", "Ptr", handle)
         }
     }
 
@@ -147,37 +212,24 @@ class ImagePainter {
             this._initWindow()
             return true
         } catch {
-            this.window := ""
-            this.windowVisible := false
+            this._forgetWindow()
             return false
         }
     }
 
     _initWindow() {
-        if (this.window != "")
+        if this.window != ""
             this.RemoveWindow()
 
-        sizeConstraints := " +MinSize" this.current.w "x" this.current.h
-            . " +MaxSize" this.current.w "x" this.current.h
-
-        ; The flag image fills the whole overlay window, so a color-key is not
-        ; needed. Apply one uniform alpha to the complete overlay instead. This
-        ; avoids the mouse-overlay edge case where TransColor + alpha could make
-        ; a 100% setting vanish on some Windows 11 compositions.
-        this.window := Gui("+LastFound -Caption +AlwaysOnTop +ToolWindow -Border -DPIScale -Resize +E0x20" sizeConstraints)
+        this.window := Gui("-Caption +AlwaysOnTop +ToolWindow -Border -DPIScale -Resize +E0x20")
         this.window.MarginX := 0
         this.window.MarginY := 0
-        this.window.Title := ""
-        this.window.BackColor := this.bgColor
+        this.window.Title := this.windowTitle
 
-        display := this.window.Add("Text", "xm+0")
-        display.move(, , this.current.w, this.current.h)
-
-        windowStyles := WS_CHILD | WS_VISIBLE | WS_EX_LAYERED
-        ImageShow(this.current.image, , [0, 0, this.current.w, this.current.h], windowStyles, , display.hwnd)
-
-        alpha := Max(0, Min(255, Round(this.opacity)))
-        WinSetTransparent(alpha, this.window)
+        pictureOptions := "x0 y0 w" . this.current.w . " h" . this.current.h
+        this.picture := this.window.Add("Picture", pictureOptions, this.current.image)
+        this.pictureHwnd := this.picture.Hwnd
+        this.windowCreatedTick := this._tick()
     }
 
     _showAtPosition() {
@@ -185,15 +237,23 @@ class ImagePainter {
         if this.window == ""
             return
 
+        movingVisibleWindow := this.windowVisible and
+            (this.current.x != this.prev.x or this.current.y != this.prev.y)
+
+        if this.hideBeforeMove and movingVisibleWindow {
+            this.HideWindow()
+            if this.window == ""
+                return
+        }
+
         halfHeight := Floor(this.current.h / 2)
         posX := this.current.x + this.margin.x
         posY := this.current.y - halfHeight + this.margin.y
-        this.window.Show("X" posX " Y" posY " AutoSize NA")
+        showOptions := "X" . posX . " Y" . posY . " W" . this.current.w . " H" . this.current.h . " NA"
+        this.window.Show(showOptions)
+
+        alpha := Max(0, Min(255, Round(this.opacity)))
+        WinSetTransparent(alpha, "ahk_id " . this.window.Hwnd)
         this.windowVisible := true
     }
 }
-
-; Window style constants
-WS_CHILD := 0x40000000
-WS_VISIBLE := 0x10000000
-WS_EX_LAYERED := 0x8000000
