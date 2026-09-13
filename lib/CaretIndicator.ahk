@@ -23,7 +23,7 @@ class CaretIndicator extends IndicatorBase {
         opacity: 179,
         inputCheckPeriod: 20,
         markRepaintPeriod: 16,
-        positionCacheTtl: 1000,
+        positionCacheTtl: 120,
     }
 
     __New(cfg?) {
