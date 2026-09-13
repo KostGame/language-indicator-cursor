@@ -20,7 +20,7 @@ class CaretWorkerHeartbeat {
     Start() {
         DirCreate(this.dir)
         this.Beat()
-        SetTimer(this.timerFn, 1000)
+        RuntimeSetTimer(this.timerFn, 1000)
     }
 
     Beat(*) {
@@ -42,7 +42,7 @@ class CaretWorkerHeartbeat {
     }
 
     Stop(deleteHeartbeat := true) {
-        SetTimer(this.timerFn, 0)
+        RuntimeSetTimer(this.timerFn, 0)
         if !deleteHeartbeat
             return
 
@@ -78,12 +78,12 @@ class CaretWorkerSupervisor {
         DirCreate(this.dir)
         this.running := true
         this.RestartWorker()
-        SetTimer(this.watchdogFn, 1000)
+        RuntimeSetTimer(this.watchdogFn, 1000)
     }
 
     Stop() {
         this.running := false
-        SetTimer(this.watchdogFn, 0)
+        RuntimeSetTimer(this.watchdogFn, 0)
         this.WriteControl("STOP")
         this.KillWorker()
         this.DeleteHeartbeat()
@@ -200,6 +200,10 @@ class CaretWorkerSupervisor {
     Tick() {
         return DllCall("GetTickCount64", "UInt64")
     }
+}
+
+RuntimeSetTimer(callback, period) {
+    Func("SetTimer").Call(callback, period)
 }
 
 GetFirstCommandLineArg(fallback := "") {
