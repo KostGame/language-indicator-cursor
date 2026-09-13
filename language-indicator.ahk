@@ -17,6 +17,7 @@ class LanguageIndicator {
 
         this.cursorIndicator := CursorIndicator(merge(CursorIndicator.DefaultConfig, this.cfg.cursor))
         this.caretSupervisor := CaretWorkerSupervisor()
+        this.caretWatchdogFn := ObjBindMethod(this.caretSupervisor, "Watchdog")
         this.exitFn := (reason, code) => this.Shutdown()
     }
 
@@ -27,16 +28,19 @@ class LanguageIndicator {
         if (!this.cfg.cursor.HasOwnProp("enabled") or this.cfg.cursor.enabled)
             this.cursorIndicator.Run()
 
-        if (!this.cfg.caret.HasOwnProp("enabled") or this.cfg.caret.enabled)
+        if (!this.cfg.caret.HasOwnProp("enabled") or this.cfg.caret.enabled) {
             this.caretSupervisor.Start()
-        else
+            SetTimer(this.caretWatchdogFn, 1000)
+        } else {
             this.caretSupervisor.Stop()
+        }
 
         this.settings.ConfigureTray(this.cfg)
         OnExit(this.exitFn)
     }
 
     Shutdown() {
+        SetTimer(this.caretWatchdogFn, 0)
         this.caretSupervisor.Stop()
         try A_IconHidden := true
     }
