@@ -1,11 +1,11 @@
 /*
 Safe caret-position detector for the reliability fork.
 
-This intentionally avoids every fallback that can wait on another process or
-on a potentially unresponsive accessibility provider. The goal is fail-closed
-reliability: if a difficult application cannot expose its caret through the
-cheap Windows APIs below, hide only the caret flag and keep the indicator
-runtime alive.
+Most applications use cheap Win32/MSAA probes. Windows Terminal is different:
+its CASCADIA host does not reliably expose a native Win32 caret, so its caret is
+read through UI Automation TextPattern selection. Because caret detection runs
+inside the isolated worker process, a stuck accessibility provider can be
+recovered by the supervisor watchdog without freezing the mouse indicator.
 */
 #requires AutoHotkey v2.0
 
@@ -31,10 +31,17 @@ GetCaretRectSafe(&left?, &top?, &right?, &bottom?, &detectMethod?) {
         return true
     }
 
+    ; Windows Terminal's CASCADIA host commonly has no native Win32 caret.
+    ; TextPattern2/GetCaretRange is not required here: Terminal exposes the
+    ; cursor as the TextPattern selection when there is no actual selection.
+    if IsWindowsTerminalCaretClass(className)
+        and TryWindowsTerminalUiaCaret(&left, &top, &right, &bottom) {
+        detectMethod := "isolated:UIA-TextPattern-Selection (className:" . className . ")"
+        return true
+    }
+
     ; Browser content controls often do not expose a native Win32 caret, so keep
-    ; the MSAA fallback only for well-known browser window classes. Do not run
-    ; cross-process accessibility calls for arbitrary windows: a stuck provider
-    ; can starve every AutoHotkey timer in this single-process utility.
+    ; the MSAA fallback only for well-known browser window classes.
     if IsBrowserCaretClass(className) and TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
         detectMethod := "safe:MSAA (className:" . className . ")"
         return true
@@ -42,6 +49,10 @@ GetCaretRectSafe(&left?, &top?, &right?, &bottom?, &detectMethod?) {
 
     detectMethod := "failure (safe-only className:" . className . ")"
     return false
+}
+
+IsWindowsTerminalCaretClass(className) {
+    return className == "CASCADIA_HOSTING_WINDOW_CLASS"
 }
 
 IsBrowserCaretClass(className) {
@@ -82,6 +93,113 @@ TryGuiCaret(hwnd, &left, &top, &right, &bottom) {
     return (left != 0 or top != 0 or right != 0 or bottom != 0)
 }
 
+TryWindowsTerminalUiaCaret(&left, &top, &right, &bottom) {
+    try {
+        ; IUIAutomation
+        uia := ComObject("{E22AD333-B25F-460C-83D0-0581107395C9}",
+            "{30CBE57D-D9D0-452A-AB13-7AC5AC4825EE}")
+
+        ; CreateCacheRequest
+        pCache := 0
+        ComCall(20, uia, "ptr*", &pCache)
+        if !pCache
+            return false
+        cacheRequest := ComValue(13, pCache, 1)
+
+        ; AddPattern(UIA_TextPatternId = 10014)
+        ComCall(4, cacheRequest, "ptr", 10014)
+
+        ; GetFocusedElementBuildCache
+        pFocused := 0
+        ComCall(12, uia, "ptr", cacheRequest, "ptr*", &pFocused)
+        if !pFocused
+            return false
+        focused := ComValue(13, pFocused, 1)
+
+        iidTextPattern := GuidBuffer("{32EBA289-3583-42C9-9C59-3B6D9A1E9B6A}")
+
+        ; GetCachedPatternAs(UIA_TextPatternId, IID_IUIAutomationTextPattern)
+        pPattern := 0
+        ComCall(15, focused,
+            "int", 10014,
+            "ptr", iidTextPattern,
+            "ptr*", &pPattern)
+        if !pPattern
+            return false
+        textPattern := ComValue(13, pPattern, 1)
+
+        ; GetSelection. Windows Terminal returns a degenerate range at the
+        ; cursor position when there is no real text selection.
+        pRanges := 0
+        ComCall(5, textPattern, "ptr*", &pRanges)
+        if !pRanges
+            return false
+        ranges := ComValue(13, pRanges, 1)
+
+        len := 0
+        ComCall(3, ranges, "int*", &len)
+        if len < 1
+            return false
+
+        pRange := 0
+        ComCall(4, ranges, "int", len - 1, "ptr*", &pRange)
+        if !pRange
+            return false
+        range := ComValue(13, pRange, 1)
+
+        ; Collapse a real selection to its end so the marker tracks the insertion
+        ; point rather than the beginning of highlighted text.
+        try ComCall(15, range, "int", 0, "ptr", range, "int", 1)
+
+        ; A degenerate range has no bounding rectangle. Expanding to one
+        ; character makes Terminal expose usable screen coordinates.
+        ComCall(6, range, "int", 0) ; TextUnit_Character
+        if TryReadUiaRangeRect(range, false, &left, &top, &right, &bottom)
+            return true
+
+        ; At end-of-line/document character expansion can fail. Expand to line
+        ; and use its right edge as the insertion point.
+        ComCall(6, range, "int", 3) ; TextUnit_Line
+        return TryReadUiaRangeRect(range, true, &left, &top, &right, &bottom)
+    } catch {
+        return false
+    }
+}
+
+TryReadUiaRangeRect(range, useRightEdge, &left, &top, &right, &bottom) {
+    psa := 0
+    ComCall(10, range, "ptr*", &psa) ; GetBoundingRectangles
+    if !psa
+        return false
+
+    rects := ComValue(0x2005, psa, 1) ; VT_ARRAY | VT_R8
+    if rects.MaxIndex() < 3
+        return false
+
+    x := Round(rects[0])
+    y := Round(rects[1])
+    w := Round(rects[2])
+    h := Round(rects[3])
+    if h < 1
+        return false
+
+    if useRightEdge
+        x += w
+
+    left := x
+    top := y
+    right := x + 1
+    bottom := y + h
+    return (left != 0 or top != 0)
+}
+
+GuidBuffer(guidText) {
+    buf := Buffer(16, 0)
+    if DllCall("ole32\\CLSIDFromString", "wstr", guidText, "ptr", buf, "int") != 0
+        throw Error("Invalid GUID: " . guidText)
+    return buf
+}
+
 TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
     hOleacc := DllCall("LoadLibraryW", "str", "oleacc.dll", "ptr")
     if !hOleacc
@@ -103,12 +221,8 @@ TryMsaaCaret(hwnd, &left, &top, &right, &bottom) {
         NumPut("uchar", 0x9B, iid, 14)
         NumPut("uchar", 0x71, iid, 15)
 
-        ; AccessibleObjectFromWindow returns a raw IAccessible* through an
-        ; output pointer. rc4 incorrectly passed a ComValue as that output and
-        ; then tried to read a non-existent .Ptr property from it. Keep the raw
-        ; pointer as an integer first, validate it, then wrap it as VT_DISPATCH.
         pAcc := 0
-        hr := DllCall("oleacc\AccessibleObjectFromWindow"
+        hr := DllCall("oleacc\\AccessibleObjectFromWindow"
             , "ptr", hwnd
             , "uint", idObject
             , "ptr", iid
