@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - agent/issue-3-runtime-self-heal
   workflow_dispatch:
 
 permissions:
@@ -98,9 +97,4 @@ jobs:
             Write-Host "Release $tag already exists; nothing to do."
             exit 0
           }
-
-          if ('${{ github.ref_name }}' -eq 'master') {
-            gh release create $tag $zip --repo '${{ github.repository }}' --target '${{ github.sha }}' --title "Language Indicator Cursor $tag" --generate-notes
-          } else {
-            gh release create $tag $zip --repo '${{ github.repository }}' --target '${{ github.sha }}' --title "Language Indicator Cursor $tag" --generate-notes --prerelease
-          }
+          gh release create $tag $zip --repo '${{ github.repository }}' --target '${{ github.sha }}' --title "Language Indicator Cursor $tag" --generate-notes
