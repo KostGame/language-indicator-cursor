@@ -79,6 +79,7 @@ class CursorIndicatorTests {
         this.TestGetPosition()
         this.TestMouseIdleVisibility()
         this.TestLanguageChangeWakesMouseFlag()
+        this.TestOverlayDismissal()
     }
 
     static TestDefaultConfig() {
@@ -124,7 +125,7 @@ class CursorIndicatorTests {
         T.AssertEqual(indicator.markPainter.scale, 2, "Cursor indicator applies configured image scale")
         T.AssertEqual(indicator.markPainter.opacity, 230, "Cursor indicator applies configured opacity")
         T.AssertEqual(indicator.markPainter.windowTitle, "LanguageIndicatorMouseOverlay", "Mouse overlay has unique title")
-        T.Assert(!indicator.markPainter.hideBeforeMove, "Mouse overlay keeps direct movement behavior")
+        T.Assert(indicator.markPainter.hideBeforeMove, "Mouse overlay hides before moving to prevent visual trails")
     }
 
     static TestGetPosition() {
@@ -163,5 +164,26 @@ class CursorIndicatorTests {
         T.Assert(!indicator.NoteLanguage("ru", 5100), "Same language does not repeatedly reset idle timeout")
         T.Assert(indicator.NoteLanguage("us", 5200), "RU to EN change wakes indicator")
         T.AssertEqual(indicator.lastMouseMoveTick, 5200, "Language change refreshes idle timestamp")
+    }
+
+    static TestOverlayDismissal() {
+        T.StartSuite("CursorIndicator.OverlayDismissal")
+
+        indicator := CursorIndicator()
+        indicator.currentMarkObj := { name: "ru", image: "dummy.png" }
+        indicator.markPainter.current.name := "ru"
+        indicator.markPainter.current.image := "dummy.png"
+        indicator.markPainter.current.x := 100
+        indicator.markPainter.current.y := 200
+
+        indicator.DismissOverlay(false)
+        T.Assert(indicator.currentMarkObj != "", "Idle dismissal preserves the logical mark for wake-up")
+        T.AssertEqual(indicator.markPainter.current.image, "", "Idle dismissal clears painter image state")
+        T.AssertEqual(indicator.markPainter.current.x, "", "Idle dismissal clears stale X coordinate")
+        T.AssertEqual(indicator.markPainter.current.y, "", "Idle dismissal clears stale Y coordinate")
+        T.AssertEqual(indicator.markPainter.window, "", "Idle dismissal leaves no overlay window")
+
+        indicator.DismissOverlay(true)
+        T.AssertEqual(indicator.currentMarkObj, "", "Invalid marker dismissal clears the logical mark")
     }
 }
