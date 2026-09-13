@@ -3,8 +3,7 @@
 ; Fork-specific behavior:
 ; - visible for ordinary mouse pointers, not only IBeam text cursors
 ; - hides after configurable mouse inactivity and reappears on movement
-; - does not wake a stationary mouse marker on layout-only changes
-; - hides the mouse marker while the text-caret marker is visibly active
+; - layout changes also wake the mouse marker for one idle-timeout window
 ; - never replaces the Windows system cursor
 ; - resolves RU/EN from the actual Windows LANGID, not discovery order
 ; - survives transient helper-window/layout states from third-party switchers
@@ -52,10 +51,6 @@ class CursorIndicator extends IndicatorBase {
     Check() {
         localeId := GetInputLocaleId()
         flagCode := LanguageFlagResolver.Resolve(localeId)
-
-        ; Before any supported RU/EN layout has ever been observed there is no
-        ; honest marker to show. Once a valid layout is known, resolver keeps it
-        ; through transient helper-window/layout states (e.g. word correction).
         if (flagCode == "")
             return
 
@@ -89,10 +84,7 @@ class CursorIndicator extends IndicatorBase {
 
         if (flagCode != "" and flagCode != this.lastFlagCode) {
             this.lastFlagCode := flagCode
-            ; Do not reset mouse-idle time here. Layout changes frequently happen
-            ; while a macro or typed text is advancing the caret. Waking a
-            ; stationary mouse marker then produces a second flag that looks like
-            ; a stale caret artifact until the mouse idle timeout expires.
+            this.lastMouseMoveTick := nowTick
             return true
         }
         return false
@@ -115,25 +107,10 @@ class CursorIndicator extends IndicatorBase {
         return (nowTick - this.lastMouseMoveTick) < this.cfg.mouseIdleHideAfter
     }
 
-    IsCaretOverlayVisible() {
-        try return WinExist("LanguageIndicatorCaretOverlay") != 0
-        catch
-            return false
-    }
-
     PaintMark(markObj) {
         if (!markObj.image or 10 > StrLen(markObj.image)) {
             this.markPainter.HideWindow()
             this.markPainter.Clear()
-            return
-        }
-
-        ; When the text-caret worker is successfully showing its marker, prefer
-        ; that one and suppress the mouse marker. This prevents two identical
-        ; flags from briefly occupying the input line while pasted/macro text
-        ; moves the caret away from the stationary pointer.
-        if this.IsCaretOverlayVisible() {
-            this.markPainter.HideWindow()
             return
         }
 
