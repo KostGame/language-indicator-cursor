@@ -52,7 +52,8 @@ class CaretIndicatorTests {
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
         T.AssertEqual(indicator.markPainter.scale, 2, "Caret indicator applies configured image scale")
         T.AssertEqual(indicator.markPainter.opacity, 179, "Caret indicator applies configured opacity")
-        T.AssertEqual(indicator.markPainter.windowTitle, "LanguageIndicatorCaretOverlay", "Caret overlay has unique coordination title")
+        T.AssertEqual(indicator.markPainter.windowTitle, "LanguageIndicatorCaretOverlay", "Caret overlay has unique title")
+        T.Assert(indicator.markPainter.hideBeforeMove, "Caret overlay is hidden before rapid position moves")
     }
 
     static TestGetPosition() {
@@ -77,7 +78,7 @@ class CursorIndicatorTests {
         this.TestInitialization()
         this.TestGetPosition()
         this.TestMouseIdleVisibility()
-        this.TestLanguageChangeDoesNotWakeMouseFlag()
+        this.TestLanguageChangeWakesMouseFlag()
     }
 
     static TestDefaultConfig() {
@@ -122,7 +123,8 @@ class CursorIndicatorTests {
         T.Assert(indicator.markPainter is ImagePainter, "markPainter is ImagePainter instance")
         T.AssertEqual(indicator.markPainter.scale, 2, "Cursor indicator applies configured image scale")
         T.AssertEqual(indicator.markPainter.opacity, 230, "Cursor indicator applies configured opacity")
-        T.AssertEqual(indicator.markPainter.windowTitle, "LanguageIndicatorMouseOverlay", "Mouse overlay has unique coordination title")
+        T.AssertEqual(indicator.markPainter.windowTitle, "LanguageIndicatorMouseOverlay", "Mouse overlay has unique title")
+        T.Assert(!indicator.markPainter.hideBeforeMove, "Mouse overlay keeps direct movement behavior")
     }
 
     static TestGetPosition() {
@@ -148,19 +150,18 @@ class CursorIndicatorTests {
         T.AssertEqual(indicator.lastMouseMoveTick, 4001, "Mouse movement refreshes idle timer")
     }
 
-    static TestLanguageChangeDoesNotWakeMouseFlag() {
-        T.StartSuite("CursorIndicator.LanguageChangeNoWake")
+    static TestLanguageChangeWakesMouseFlag() {
+        T.StartSuite("CursorIndicator.LanguageChangeWake")
 
         indicator := CursorIndicator()
         pos := { x: 100, y: 200 }
 
         indicator.IsMouseActive(pos, 1000)
         T.Assert(!indicator.IsMouseActive(pos, 4000), "Mouse is idle before layout change")
-        T.Assert(indicator.NoteLanguage("ru", 5000), "First valid language change is observed")
-        T.Assert(!indicator.IsMouseActive(pos, 5001), "Layout change does not wake stationary mouse flag")
-        T.AssertEqual(indicator.lastMouseMoveTick, 1000, "Layout observation leaves mouse idle timestamp unchanged")
-        T.Assert(!indicator.NoteLanguage("ru", 5100), "Same language is not treated as a new change")
-        T.Assert(indicator.NoteLanguage("us", 5200), "RU to EN change is observed")
-        T.Assert(!indicator.IsMouseActive(pos, 5201), "RU to EN change still does not wake stationary mouse flag")
+        T.Assert(indicator.NoteLanguage("ru", 5000), "First valid language wakes indicator")
+        T.Assert(indicator.IsMouseActive(pos, 5001), "Language observation resets idle timeout")
+        T.Assert(!indicator.NoteLanguage("ru", 5100), "Same language does not repeatedly reset idle timeout")
+        T.Assert(indicator.NoteLanguage("us", 5200), "RU to EN change wakes indicator")
+        T.AssertEqual(indicator.lastMouseMoveTick, 5200, "Language change refreshes idle timestamp")
     }
 }
