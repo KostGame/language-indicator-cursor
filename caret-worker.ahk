@@ -21,8 +21,10 @@ if (cfg.caret.HasOwnProp("enabled") and !cfg.caret.enabled)
     ExitApp()
 
 heartbeat := CaretWorkerHeartbeat(generation)
+heartbeatFn := ObjBindMethod(heartbeat, "Beat")
 workerIndicator := CaretIndicator(merge(CaretIndicator.DefaultConfig, cfg.caret))
 
 OnExit((*) => heartbeat.Stop())
 heartbeat.Start()
+SetTimer(heartbeatFn, 1000)
 workerIndicator.Run()
