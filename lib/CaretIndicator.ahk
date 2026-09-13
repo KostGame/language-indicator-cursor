@@ -33,6 +33,7 @@ class CaretIndicator extends IndicatorBase {
         this.markPainter.scale := cfg.markScale
         this.markPainter.opacity := cfg.opacity
         this.markPainter.windowTitle := "LanguageIndicatorCaretOverlay"
+        this.markPainter.hideBeforeMove := true
         this.getCachedPosition := UseCachedWhileIdle(
             () => this.ComputePosition(),
             this.cfg.positionCacheTtl
@@ -42,10 +43,6 @@ class CaretIndicator extends IndicatorBase {
     Check() {
         localeId := GetInputLocaleId()
         flagCode := LanguageFlagResolver.Resolve(localeId)
-
-        ; A third-party switcher can briefly expose its own helper window/layout
-        ; while rewriting the last word. Keep the last valid RU/EN flag instead
-        ; of clearing both overlays during that transient state.
         if (flagCode == "")
             return
 
@@ -67,12 +64,6 @@ class CaretIndicator extends IndicatorBase {
 
     ComputePosition() {
         left := -1, top := -1, bottom := -1, right := -1
-
-        ; Do not query a foreground window above our integrity level. More
-        ; importantly, the safe detector used below never invokes the upstream
-        ; remote-thread caret fallback. That fallback can block the single AHK
-        ; runtime and starve both indicators when a target window gets into an
-        ; awkward accessibility/focus state.
         if IsActiveWindowUnsafeForCaretProbe() {
             return {
                 left: left,
