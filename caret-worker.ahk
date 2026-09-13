@@ -5,7 +5,7 @@
 #include lib\SettingsManager.ahk
 #include lib\AppConfig.ahk
 #include lib\utils\Merge.ahk
-#include lib\runtime\ProcessIsolation.ahk
+#include lib\runtime\CaretWorkerRuntime.ahk
 
 A_IconHidden := true
 
