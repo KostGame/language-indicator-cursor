@@ -43,14 +43,14 @@ class CaretIndicator extends IndicatorBase {
     Check() {
         localeId := GetInputLocaleId()
         flagCode := LanguageFlagResolver.Resolve(localeId)
-        if (flagCode == "")
+        if (flagCode == "") {
+            this.DismissCaretOverlay()
             return
+        }
 
         filePath := this.cfg.files.folder . flagCode . ".png"
         if !FileExist(filePath) {
-            this.currentMarkObj := ""
-            this.markPainter.HideWindow()
-            this.markPainter.Clear()
+            this.DismissCaretOverlay()
             return
         }
 
@@ -85,8 +85,7 @@ class CaretIndicator extends IndicatorBase {
 
     PaintMark(markObj) {
         if (!markObj.image or 2 > StrLen(markObj.image)) {
-            this.markPainter.HideWindow()
-            this.markPainter.Clear()
+            this.DismissCaretOverlay()
             return
         }
 
@@ -95,7 +94,7 @@ class CaretIndicator extends IndicatorBase {
             DebugCaretPosition(pos.left, pos.top, pos.right, pos.bottom, pos.detectMethod)
 
         if (InStr(pos.detectMethod, "failure") or (pos.w < 1 and pos.h < 1)) {
-            this.markPainter.HideWindow()
+            this.DismissCaretOverlay()
             return
         }
 
@@ -105,5 +104,14 @@ class CaretIndicator extends IndicatorBase {
         this.markPainter.current.x := pos.right
         this.markPainter.current.y := pos.top + Floor(pos.h / 2)
         this.markPainter.Paint()
+    }
+
+    DismissCaretOverlay() {
+        ; A hidden top-level overlay can occasionally leave a compositor ghost on
+        ; Chromium page navigation. Destroy it instead and clear the current mark
+        ; so repaint cannot resurrect stale coordinates before a real caret exists.
+        this.currentMarkObj := ""
+        this.markPainter.RemoveWindow()
+        this.markPainter.ClearAll()
     }
 }
