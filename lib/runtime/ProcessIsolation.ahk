@@ -1,5 +1,11 @@
 #requires AutoHotkey v2.0
 
+; This file is a library. Exit immediately only when a validator launches it as
+; a standalone script; when included, A_ScriptFullPath points at the real entry
+; point and the classes below remain available normally.
+if (A_LineFile == A_ScriptFullPath)
+    ExitApp()
+
 ; Keep caret accessibility work in a different process from mouse/tray logic.
 ; The worker emits a heartbeat from its own AutoHotkey event loop. If a caret
 ; accessibility call blocks that loop, the heartbeat stops and the main process
