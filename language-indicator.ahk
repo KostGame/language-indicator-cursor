@@ -8,7 +8,7 @@
 #include lib\runtime\CaretWorkerRuntime.ahk
 
 class LanguageIndicator {
-    static Version := "0.79-kost.8-rc9"
+    static Version := "0.79-kost.8-beta.1"
 
     __New(cfg?) {
         defaultCfg := CreateLanguageIndicatorDefaultConfig()
