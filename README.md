@@ -1,14 +1,13 @@
 # Language Indicator Cursor for Windows
 
-Fork of `yakunins/language-indicator`, tuned for a multi-monitor use case: keep the active RU/EN keyboard language close to where you are working, next to the mouse pointer and the active text caret.
+Fork of `yakunins/language-indicator`, tuned for a multi-monitor RU/EN workflow. The primary mode shows the active keyboard language next to the text caret so the layout is visible exactly where you type. An optional mouse-following flag is still available from the tray menu, but is disabled by default in the stable release.
 
 ## Fork behavior
 
 - Windows 11/10, AutoHotkey v2.
-- A small flag follows the mouse pointer on any monitor while the mouse is active.
-- The mouse flag automatically hides after the configured idle period (3 seconds by default) and reappears immediately when the mouse moves again.
-- A real RU↔EN layout change also wakes the mouse flag for one idle-timeout window, even if the mouse itself did not move.
-- When an active text caret can be detected, the same language flag is also shown next to the insertion point. The caret flag is not hidden by mouse inactivity, so it remains useful while typing.
+- When an active text caret can be detected, a small RU/EN flag is shown next to the insertion point.
+- The caret flag follows typing and is not hidden by mouse inactivity.
+- An optional mouse flag can be enabled from the tray menu. When enabled, it follows the pointer, hides after the configured idle period, and wakes on movement or a real RU↔EN layout change.
 - **Russian** layouts use `img/flags-png/ru.png`.
 - **English** layouts (US, UK, etc.) use `img/flags-png/us.png`.
 - Layout identity is resolved from the actual Windows `HKL/LANGID`, not from discovery order.
@@ -16,12 +15,22 @@ Fork of `yakunins/language-indicator`, tuned for a multi-monitor use case: keep 
 - Marker overlays are non-activating and click-through.
 - Caps Lock does not change the language flag.
 - Unsupported/transient helper layouts do not erase the last valid RU/EN flag.
+- Caret probing runs in a separate worker process with heartbeat/watchdog recovery so a bad target application does not take down the mouse/tray process.
+- Stale caret and mouse overlays are destroyed on invalid/focus-loss states to avoid persistent visual ghosts.
 
 The source flag images are 8×6 pixels and are displayed at 2× size by default, so the visible marker is approximately 16×12 pixels.
 
 ## Settings
 
 All settings live directly in the tray menu. There is no separate settings window.
+
+### `В поле ввода`
+
+- **Показывать в поле ввода** on/off.
+- **Непрозрачность**: 40–100% presets (`100%` = fully visible).
+- **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
+
+The text-caret flag is enabled by default, uses about 70% opacity, and is raised above the text line so it does not cover the word being typed.
 
 ### `У мыши`
 
@@ -30,13 +39,7 @@ All settings live directly in the tray menu. There is no separate settings windo
 - **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
 - **Скрывать через**: never / 1 / 2 / 3 / 5 / 10 seconds.
 
-### `В поле ввода`
-
-- **Показывать в поле ввода** on/off.
-- **Непрозрачность**: 40–100% presets (`100%` = fully visible).
-- **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
-
-Defaults are intentionally different: the mouse flag is about 90% opaque, while the text-caret flag is about 70% opaque and raised above the text line so it does not cover the word being typed.
+The mouse flag remains available as an optional mode but is disabled by default in the stable release.
 
 Settings are stored per user in:
 
@@ -44,13 +47,13 @@ Settings are stored per user in:
 %APPDATA%\LanguageIndicatorCursor\settings.ini
 ```
 
-Each tray change is persisted and the indicator reloads automatically so the new value takes effect.
+Each tray change is persisted and the indicator reloads automatically so the new value takes effect. Existing installations keep their previously saved settings when upgrading.
 
 ## Runtime recovery / diagnostics
 
-Foreground focus changes can briefly make Windows input-locale or caret APIs unavailable. The fork contains timer exception containment, transient-locale recovery, stale-overlay recreation, and last-valid RU/EN retention so one bad focus transition does not permanently stop updates.
+Foreground focus changes can briefly make Windows input-locale or caret APIs unavailable. The fork contains timer exception containment, transient-locale recovery, stale-overlay destruction/recreation, last-valid RU/EN retention, a separate caret worker, and a watchdog so one bad focus transition does not permanently stop updates.
 
-Input-locale sampling uses a 20 ms cadence. This was retained after manual testing showed substantially better stability with Caramba Switcher Double Shift last-word correction than the earlier 50 ms cadence. An extremely fast repeated correction sequence may still expose a rare timing edge; issue #3 remains available for follow-up, but it is not considered a release blocker.
+Input-locale sampling uses a 20 ms cadence. This was retained after manual testing showed substantially better stability with Caramba Switcher Double Shift last-word correction than the earlier 50 ms cadence.
 
 If a runtime error occurs, a throttled diagnostic log is written to:
 
@@ -78,7 +81,7 @@ For a polished public release, the executable should be Authenticode-signed with
 
 ## Releases
 
-After a stable change is merged to `master`, `.github/workflows/release.yml` runs the Windows tests, compiles the executable, packages the runnable files, reads `LanguageIndicator.Version`, and publishes a versioned GitHub Release. If that version already exists, the workflow leaves the existing release untouched.
+After a stable change is merged to `master`, `.github/workflows/release.yml` runs the Windows tests, compiles both executables, packages the runnable files, reads `LanguageIndicator.Version`, and publishes a versioned GitHub Release. Versions containing `-beta` or `-rc` are published as prereleases; stable versions are ordinary releases. If that version already exists, the workflow leaves the existing release untouched.
 
 ## Development
 
@@ -104,8 +107,9 @@ The compiler writes `language-indicator.exe` in the repository root.
 
 ## Relevant implementation
 
-- `lib/CursorIndicator.ahk` follows the mouse, selects the RU/EN flag, handles idle timeout, and wakes on real language changes.
-- `lib/CaretIndicator.ahk` follows the active text caret and uses the same RU/EN mapping.
+- `lib/CaretIndicator.ahk` follows the active text caret and uses RU/EN mapping.
+- `lib/CursorIndicator.ahk` implements the optional mouse-following marker, idle timeout, and wake-up on real language changes.
+- `lib/runtime/CaretWorkerRuntime.ahk` isolates caret probing in a worker process and supervises it with heartbeat/watchdog recovery.
 - `lib/SettingsManager.ahk` loads/saves per-user settings and builds the tray-only settings menus.
 - `lib/detection/GetInputLocaleId.ahk` reads the keyboard layout of the active foreground window and tolerates transient focus races.
 - `lib/detection/GetLanguageFlagCode.ahk` maps Windows primary language IDs to `ru` / `us` flag assets and retains the last valid supported language through transient helper layouts.
@@ -114,15 +118,19 @@ The compiler writes `language-indicator.exe` in the repository root.
 
 ## Limitations
 
-Caret position detection depends on what the target application exposes to Windows. Standard Win32 controls and many modern applications are supported by the upstream detection stack, but some custom-rendered editors may not expose a usable caret position. In that case the mouse flag continues to work normally.
+Caret position detection depends on what the target application exposes to Windows. Standard Win32 controls, Chromium/Electron applications and Windows Terminal are supported through multiple detection paths, but some custom-rendered or protected applications may not expose a usable text caret at all. In those applications no caret flag can be shown reliably.
 
-A non-elevated indicator may also be unable to inspect caret/UI-accessibility data from an elevated Administrator application because of Windows integrity-level isolation. That case is tracked separately and should be solved without weakening UAC.
+A non-elevated indicator cannot safely inspect caret/UI-accessibility data from an elevated Administrator application because of Windows integrity-level isolation. Elevated PowerShell/Terminal is therefore a known limitation unless the indicator itself is run elevated, which is not recommended as the default operating mode.
+
+Some applications also use protected or custom-rendered surfaces that Windows screenshot tools cannot capture while the surface is active. That behavior is controlled by the target application/Windows compositor and is separate from this indicator.
+
+In a few highly dynamic editors or chat applications the detected caret rectangle can temporarily be vertically offset, so the flag may follow slightly above the actual text line. This is cosmetic and does not affect language detection.
 
 ## Upstream
 
 Original project: `yakunins/language-indicator`.
 
-The upstream project supports per-language styling of both the text caret and mouse I-beam cursor, including `.cur`, `.ani`, `.ico`, and `.png` customization. This fork keeps that detection machinery but narrows the default visual behavior to explicit RU/EN flags for multi-monitor work.
+The upstream project supports per-language styling of both the text caret and mouse I-beam cursor, including `.cur`, `.ani`, `.ico`, and `.png` customization. This fork keeps that detection machinery but defaults to an explicit RU/EN text-caret flag for multi-monitor work.
 
 ## License
 
