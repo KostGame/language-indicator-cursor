@@ -7,6 +7,7 @@ class SystemCursorColorIndicatorTests {
     static Run() {
         this.TestColorMapping()
         this.TestCursorRoleCoverage()
+        this.TestRenderSmoke()
     }
 
     static TestColorMapping() {
@@ -28,6 +29,23 @@ class SystemCursorColorIndicatorTests {
         T.Assert(this.HasValue(roles, 32644), "Horizontal resize cursor role is covered")
         T.Assert(!this.HasValue(roles, 32514), "Animated Wait cursor is intentionally excluded from beta.1")
         T.Assert(!this.HasValue(roles, 32650), "Animated AppStarting cursor is intentionally excluded from beta.1")
+    }
+
+    static TestRenderSmoke() {
+        T.StartSuite("SystemCursorColorIndicator.RenderSmoke")
+
+        indicator := SystemCursorColorIndicator(SystemCursorColorIndicator.DefaultConfig)
+        for cursorId in [32512, 32513, 32649] {
+            hShared := DllCall("user32\LoadCursorW", "ptr", 0, "ptr", cursorId, "ptr")
+            T.Assert(hShared != 0, "Standard cursor can be loaded: " . cursorId)
+            if !hShared
+                continue
+
+            hAccent := indicator.CreateAccentedCursor(hShared, 0xE53935)
+            T.Assert(hAccent != 0, "Accented cursor can be generated: " . cursorId)
+            if hAccent
+                DllCall("user32\DestroyCursor", "ptr", hAccent)
+        }
     }
 
     static HasValue(values, expected) {
