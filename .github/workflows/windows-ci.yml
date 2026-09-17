@@ -33,7 +33,7 @@ jobs:
           if (Test-Path '.\tests\test-results.txt') { Get-Content '.\tests\test-results.txt' }
           if ($proc.ExitCode -ne 0) { throw "AutoHotkey tests failed with exit code $($proc.ExitCode)" }
 
-      - name: Validate rc4 modules
+      - name: Validate runtime modules
         shell: pwsh
         run: |
           $scripts = @(
@@ -41,6 +41,7 @@ jobs:
             '.\lib\AppConfig.ahk',
             '.\lib\image-utils\ImagePainter.ahk',
             '.\lib\CursorIndicator.ahk',
+            '.\lib\SystemCursorColorIndicator.ahk',
             '.\lib\SettingsManager.ahk',
             '.\language-indicator.ahk',
             '.\caret-worker.ahk'
