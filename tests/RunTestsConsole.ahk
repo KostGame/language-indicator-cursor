@@ -11,6 +11,7 @@
 #include Indicators.test.ahk
 #include CaretOverlayLifecycle.test.ahk
 #include AppConfig.test.ahk
+#include SystemCursorColorIndicator.test.ahk
 #include LanguageIndicator.test.ahk
 #include SettingsManager.test.ahk
 
@@ -55,6 +56,9 @@ RunAllTests() {
         T.Log("")
 
         AppConfigTests.Run()
+        T.Log("")
+
+        SystemCursorColorIndicatorTests.Run()
         T.Log("")
 
         LanguageIndicatorTests.Run()
