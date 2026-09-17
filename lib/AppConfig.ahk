@@ -11,7 +11,7 @@ CreateLanguageIndicatorDefaultConfig() {
             opacity: 179
         },
         cursor: {
-            enabled: true,
+            enabled: false,
             inputCheckPeriod: 20,
             markRepaintPeriod: 6,
             markMargin: { x: 18, y: 12, useCursorSize: false },
