@@ -10,6 +10,7 @@
 #include ProcessIntegrity.test.ahk
 #include Indicators.test.ahk
 #include CaretOverlayLifecycle.test.ahk
+#include AppConfig.test.ahk
 #include LanguageIndicator.test.ahk
 #include SettingsManager.test.ahk
 
@@ -51,6 +52,9 @@ RunAllTests() {
         T.Log("")
 
         CursorIndicatorTests.Run()
+        T.Log("")
+
+        AppConfigTests.Run()
         T.Log("")
 
         LanguageIndicatorTests.Run()
