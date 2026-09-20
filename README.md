@@ -2,19 +2,19 @@
 
 Fork of `yakunins/language-indicator`, tuned for a multi-monitor RU/EN workflow. The primary mode shows the active keyboard language next to the text caret so the layout is visible exactly where you type. An optional mouse-following flag is still available from the tray menu, but is disabled by default.
 
-## 0.80 beta experiment: colored system cursors
+## 0.80: colored system cursors
 
-`0.80-kost.1-beta.1` adds a second language cue that does not depend on caret detection: the actual Windows system cursor receives a thin colored outline.
+`0.80-kost.1` adds a second language cue that does not depend on caret detection: the actual Windows system cursor receives a thin colored outline.
 
 - **RU**: red accent (`#E53935`).
 - **EN**: blue accent (`#2F80ED`).
 - Covered roles include Arrow, IBeam, Hand, Cross, resize/move, unavailable, help, pin and person.
 - The original cursor geometry and hotspot are preserved; only a thin outline is added.
-- Animated `Wait` and `AppStarting` cursors are intentionally left unchanged in beta.1 so Windows animation is not frozen into a static frame.
+- Animated `Wait` and `AppStarting` cursors are intentionally left unchanged so Windows animation is not frozen into a static frame.
 - On normal app exit/reload, the cursor set captured at startup is restored.
 - Apps that draw a completely custom cursor can still override the system cursor.
 
-The feature is enabled by default in beta.1 and can be disabled from the tray menu under `Цвет системных курсоров`.
+The feature is enabled by default and can be disabled from the tray menu under `Цвет системных курсоров`.
 
 ## Fork behavior
 
@@ -30,6 +30,7 @@ The feature is enabled by default in beta.1 and can be disabled from the tray me
 - Unsupported/transient helper layouts do not erase the last valid RU/EN flag.
 - Caret probing runs in a separate worker process with heartbeat/watchdog recovery so a bad target application does not take down the mouse/tray process.
 - Stale caret and mouse overlays are destroyed on invalid/focus-loss states to avoid persistent visual ghosts.
+- Large caret-coordinate jumps rebuild the caret overlay and flush DWM composition before repaint, reducing stale overlay copies during Chromium/Electron partial page redraws.
 
 The source flag images are 8×6 pixels and are displayed at 2× size by default, so the visible marker is approximately 16×12 pixels.
 
@@ -48,7 +49,7 @@ The text-caret flag is enabled by default, uses about 70% opacity, and is raised
 ### `Цвет системных курсоров`
 
 - **Красный RU / синий EN** on/off.
-- Enabled by default in the 0.80 beta.
+- Enabled by default in 0.80.
 - Works independently of the floating mouse flag and does not require caret geometry.
 
 ### `У мыши`
@@ -146,13 +147,13 @@ Some applications also use protected or custom-rendered surfaces that Windows sc
 
 In a few highly dynamic editors or chat applications the detected caret rectangle can temporarily be vertically offset, so the flag may follow slightly above the actual text line. This is cosmetic and does not affect language detection.
 
-Because `SetSystemCursor` changes cursor roles for the interactive desktop, force-killing the process can leave the beta cursor set active until Windows reloads the pointer scheme, the app is restarted, or the user signs out. Normal exit/reload restores the captured cursor set.
+Because `SetSystemCursor` changes cursor roles for the interactive desktop, force-killing the process can leave the colored cursor set active until Windows reloads the pointer scheme, the app is restarted, or the user signs out. Normal exit/reload restores the captured cursor set.
 
 ## Upstream
 
 Original project: `yakunins/language-indicator`.
 
-The upstream project supports per-language styling of the text caret and mouse I-beam cursor, including `.cur`, `.ani`, `.ico`, and `.png` customization. The 0.80 experiment extends that idea to a broader set of standard Windows cursor roles while preserving their familiar shapes.
+The upstream project supports per-language styling of the text caret and mouse I-beam cursor, including `.cur`, `.ani`, `.ico`, and `.png` customization. The 0.80 release extends that idea to a broader set of standard Windows cursor roles while preserving their familiar shapes.
 
 ## License
 
