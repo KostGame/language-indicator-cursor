@@ -35,6 +35,9 @@ class SettingsManager {
             y: this.ReadInt("Caret", "OffsetY", cfg.caret.markMargin.y, -200, 200)
         }
 
+        if cfg.HasOwnProp("systemCursor")
+            cfg.systemCursor.enabled := this.ReadBool("SystemCursor", "Enabled", cfg.systemCursor.enabled)
+
         return cfg
     }
 
@@ -46,11 +49,29 @@ class SettingsManager {
 
         A_TrayMenu.Add("У мыши", mouseMenu)
         A_TrayMenu.Add("В поле ввода", caretMenu)
+
+        if cfg.HasOwnProp("systemCursor") {
+            systemCursorMenu := this.BuildSystemCursorMenu(cfg.systemCursor)
+            A_TrayMenu.Add("Цвет системных курсоров", systemCursorMenu)
+        }
+
         A_TrayMenu.Add()
         A_TrayMenu.Add("Перезапустить индикатор", (*) => this.ReloadClean())
         A_TrayMenu.Add("Открыть папку настроек", (*) => this.OpenSettingsFolder())
         A_TrayMenu.Add()
         A_TrayMenu.Add("Выход", (*) => this.ExitClean())
+    }
+
+    BuildSystemCursorMenu(cfg) {
+        cursorColorMenu := Menu()
+        enabledLabel := "Красный RU / синий EN"
+        cursorColorMenu.Add(enabledLabel, ObjBindMethod(this, "SetBoolAndReload", "SystemCursor", "Enabled", !cfg.enabled))
+        if cfg.enabled
+            cursorColorMenu.Check(enabledLabel)
+        cursorColorMenu.Add()
+        cursorColorMenu.Add("Эксперимент 0.80 beta: Arrow, Hand, IBeam, resize и др.", (*) => 0)
+        cursorColorMenu.Disable("Эксперимент 0.80 beta: Arrow, Hand, IBeam, resize и др.")
+        return cursorColorMenu
     }
 
     BuildIndicatorMenu(section, cfg, includeIdle, enabledLabel) {

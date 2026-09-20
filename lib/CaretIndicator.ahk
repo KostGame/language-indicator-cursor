@@ -24,6 +24,7 @@ class CaretIndicator extends IndicatorBase {
         inputCheckPeriod: 20,
         markRepaintPeriod: 16,
         positionCacheTtl: 120,
+        largeMoveRebuildThreshold: 64,
     }
 
     __New(cfg?) {
@@ -34,6 +35,8 @@ class CaretIndicator extends IndicatorBase {
         this.markPainter.opacity := cfg.opacity
         this.markPainter.windowTitle := "LanguageIndicatorCaretOverlay"
         this.markPainter.hideBeforeMove := true
+        this.markPainter.rebuildOnLargeMove := true
+        this.markPainter.largeMoveThreshold := cfg.largeMoveRebuildThreshold
         this.getCachedPosition := UseCachedWhileIdle(
             () => this.ComputePosition(),
             this.cfg.positionCacheTtl
@@ -111,7 +114,7 @@ class CaretIndicator extends IndicatorBase {
         ; Chromium page navigation. Destroy it instead and clear the current mark
         ; so repaint cannot resurrect stale coordinates before a real caret exists.
         this.currentMarkObj := ""
-        this.markPainter.RemoveWindow()
+        this.markPainter.RemoveWindow(true)
         this.markPainter.ClearAll()
     }
 }

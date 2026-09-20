@@ -1,6 +1,20 @@
 # Language Indicator Cursor for Windows
 
-Fork of `yakunins/language-indicator`, tuned for a multi-monitor RU/EN workflow. The primary mode shows the active keyboard language next to the text caret so the layout is visible exactly where you type. An optional mouse-following flag is still available from the tray menu, but is disabled by default in the stable release.
+Fork of `yakunins/language-indicator`, tuned for a multi-monitor RU/EN workflow. The primary mode shows the active keyboard language next to the text caret so the layout is visible exactly where you type. An optional mouse-following flag is still available from the tray menu, but is disabled by default.
+
+## 0.80: colored system cursors
+
+`0.80-kost.1` adds a second language cue that does not depend on caret detection: the actual Windows system cursor receives a thin colored outline.
+
+- **RU**: red accent (`#E53935`).
+- **EN**: blue accent (`#2F80ED`).
+- Covered roles include Arrow, IBeam, Hand, Cross, resize/move, unavailable, help, pin and person.
+- The original cursor geometry and hotspot are preserved; only a thin outline is added.
+- Animated `Wait` and `AppStarting` cursors are intentionally left unchanged so Windows animation is not frozen into a static frame.
+- On normal app exit/reload, the cursor set captured at startup is restored.
+- Apps that draw a completely custom cursor can still override the system cursor.
+
+The feature is enabled by default and can be disabled from the tray menu under `Цвет системных курсоров`.
 
 ## Fork behavior
 
@@ -11,12 +25,12 @@ Fork of `yakunins/language-indicator`, tuned for a multi-monitor RU/EN workflow.
 - **Russian** layouts use `img/flags-png/ru.png`.
 - **English** layouts (US, UK, etc.) use `img/flags-png/us.png`.
 - Layout identity is resolved from the actual Windows `HKL/LANGID`, not from discovery order.
-- The Windows system cursor is never replaced.
 - Marker overlays are non-activating and click-through.
 - Caps Lock does not change the language flag.
 - Unsupported/transient helper layouts do not erase the last valid RU/EN flag.
 - Caret probing runs in a separate worker process with heartbeat/watchdog recovery so a bad target application does not take down the mouse/tray process.
 - Stale caret and mouse overlays are destroyed on invalid/focus-loss states to avoid persistent visual ghosts.
+- Large caret-coordinate jumps rebuild the caret overlay and flush DWM composition before repaint, reducing stale overlay copies during Chromium/Electron partial page redraws.
 
 The source flag images are 8×6 pixels and are displayed at 2× size by default, so the visible marker is approximately 16×12 pixels.
 
@@ -32,6 +46,12 @@ All settings live directly in the tray menu. There is no separate settings windo
 
 The text-caret flag is enabled by default, uses about 70% opacity, and is raised above the text line so it does not cover the word being typed.
 
+### `Цвет системных курсоров`
+
+- **Красный RU / синий EN** on/off.
+- Enabled by default in 0.80.
+- Works independently of the floating mouse flag and does not require caret geometry.
+
 ### `У мыши`
 
 - **Показывать у мыши** on/off.
@@ -39,7 +59,7 @@ The text-caret flag is enabled by default, uses about 70% opacity, and is raised
 - **Положение**: move the flag up/down/left/right in 2 px steps, or reset to the default position.
 - **Скрывать через**: never / 1 / 2 / 3 / 5 / 10 seconds.
 
-The mouse flag remains available as an optional mode but is disabled by default in the stable release.
+The mouse flag remains available as an optional mode but is disabled by default.
 
 Settings are stored per user in:
 
@@ -47,13 +67,13 @@ Settings are stored per user in:
 %APPDATA%\LanguageIndicatorCursor\settings.ini
 ```
 
-Each tray change is persisted and the indicator reloads automatically so the new value takes effect. Existing installations keep their previously saved settings when upgrading.
+Each tray change is persisted and the indicator reloads automatically so the new value takes effect. Existing installations keep their previously saved mouse/caret settings when upgrading.
 
 ## Runtime recovery / diagnostics
 
 Foreground focus changes can briefly make Windows input-locale or caret APIs unavailable. The fork contains timer exception containment, transient-locale recovery, stale-overlay destruction/recreation, last-valid RU/EN retention, a separate caret worker, and a watchdog so one bad focus transition does not permanently stop updates.
 
-Input-locale sampling uses a 20 ms cadence. This was retained after manual testing showed substantially better stability with Caramba Switcher Double Shift last-word correction than the earlier 50 ms cadence.
+Input-locale sampling uses a 20 ms cadence for the caret/mouse overlays. The 0.80 system-cursor color watcher switches only when the resolved RU/EN state changes.
 
 If a runtime error occurs, a throttled diagnostic log is written to:
 
@@ -108,6 +128,7 @@ The compiler writes `language-indicator.exe` in the repository root.
 ## Relevant implementation
 
 - `lib/CaretIndicator.ahk` follows the active text caret and uses RU/EN mapping.
+- `lib/SystemCursorColorIndicator.ahk` generates red/blue outlined copies of standard system cursors and switches the set on a real RU/EN change.
 - `lib/CursorIndicator.ahk` implements the optional mouse-following marker, idle timeout, and wake-up on real language changes.
 - `lib/runtime/CaretWorkerRuntime.ahk` isolates caret probing in a worker process and supervises it with heartbeat/watchdog recovery.
 - `lib/SettingsManager.ahk` loads/saves per-user settings and builds the tray-only settings menus.
@@ -120,17 +141,19 @@ The compiler writes `language-indicator.exe` in the repository root.
 
 Caret position detection depends on what the target application exposes to Windows. Standard Win32 controls, Chromium/Electron applications and Windows Terminal are supported through multiple detection paths, but some custom-rendered or protected applications may not expose a usable text caret at all. In those applications no caret flag can be shown reliably.
 
-A non-elevated indicator cannot safely inspect caret/UI-accessibility data from an elevated Administrator application because of Windows integrity-level isolation. Elevated PowerShell/Terminal is therefore a known limitation unless the indicator itself is run elevated, which is not recommended as the default operating mode.
+A non-elevated indicator cannot safely inspect caret/UI-accessibility data from an elevated Administrator application because of Windows integrity-level isolation. Elevated PowerShell/Terminal is therefore a known caret-flag limitation. The system-cursor color feature is independent from caret probing and is expected to keep working more broadly, but applications may still replace the pointer with their own custom cursor.
 
 Some applications also use protected or custom-rendered surfaces that Windows screenshot tools cannot capture while the surface is active. That behavior is controlled by the target application/Windows compositor and is separate from this indicator.
 
 In a few highly dynamic editors or chat applications the detected caret rectangle can temporarily be vertically offset, so the flag may follow slightly above the actual text line. This is cosmetic and does not affect language detection.
 
+Because `SetSystemCursor` changes cursor roles for the interactive desktop, force-killing the process can leave the colored cursor set active until Windows reloads the pointer scheme, the app is restarted, or the user signs out. Normal exit/reload restores the captured cursor set.
+
 ## Upstream
 
 Original project: `yakunins/language-indicator`.
 
-The upstream project supports per-language styling of both the text caret and mouse I-beam cursor, including `.cur`, `.ani`, `.ico`, and `.png` customization. This fork keeps that detection machinery but defaults to an explicit RU/EN text-caret flag for multi-monitor work.
+The upstream project supports per-language styling of the text caret and mouse I-beam cursor, including `.cur`, `.ani`, `.ico`, and `.png` customization. The 0.80 release extends that idea to a broader set of standard Windows cursor roles while preserving their familiar shapes.
 
 ## License
 

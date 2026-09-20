@@ -18,6 +18,13 @@ CreateLanguageIndicatorDefaultConfig() {
             markScale: 2,
             opacity: 230,
             mouseIdleHideAfter: 3000
+        },
+        systemCursor: {
+            enabled: true,
+            inputCheckPeriod: 30,
+            ruColor: 0xE53935,
+            usColor: 0x2F80ED,
+            alphaThreshold: 48
         }
     }
 }
