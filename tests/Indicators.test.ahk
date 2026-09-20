@@ -38,6 +38,7 @@ class CaretIndicatorTests {
         T.AssertEqual(cfg.inputCheckPeriod, 20, "Default inputCheckPeriod is 20")
         T.AssertEqual(cfg.markRepaintPeriod, 16, "Default markRepaintPeriod is 16")
         T.AssertEqual(cfg.positionCacheTtl, 120, "Caret position cache expires quickly after focus changes")
+        T.AssertEqual(cfg.largeMoveRebuildThreshold, 64, "Caret overlay rebuild threshold is 64px")
     }
 
     static TestInitialization() {
@@ -54,6 +55,8 @@ class CaretIndicatorTests {
         T.AssertEqual(indicator.markPainter.opacity, 179, "Caret indicator applies configured opacity")
         T.AssertEqual(indicator.markPainter.windowTitle, "LanguageIndicatorCaretOverlay", "Caret overlay has unique title")
         T.Assert(indicator.markPainter.hideBeforeMove, "Caret overlay is hidden before rapid position moves")
+        T.Assert(indicator.markPainter.rebuildOnLargeMove, "Caret overlay rebuilds on large coordinate jumps")
+        T.AssertEqual(indicator.markPainter.largeMoveThreshold, 64, "Caret painter receives the large-jump threshold")
     }
 
     static TestGetPosition() {
