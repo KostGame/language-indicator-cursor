@@ -10,6 +10,8 @@ class ImagePainter {
         this.windowCreatedTick := 0
         this.windowTitle := "LanguageIndicatorOverlay"
         this.hideBeforeMove := false
+        this.rebuildOnLargeMove := false
+        this.largeMoveThreshold := 64
         this.healthRefreshPeriod := 10000
         this.margin := { x: 0, y: 0 }
         this.scale := 1
@@ -66,10 +68,20 @@ class ImagePainter {
         this.RemoveWindow()
     }
 
-    RemoveWindow() {
+    RemoveWindow(flushComposition := false) {
         if this.window != ""
             try this.window.Destroy()
         this._forgetWindow()
+
+        if flushComposition
+            this.FlushComposition()
+    }
+
+    FlushComposition() {
+        ; Chromium/Electron can move and repaint in several compositor phases.
+        ; Waiting for DWM to commit a destroyed overlay prevents the same
+        ; top-level surface from leaving visual copies at old coordinates.
+        try DllCall("dwmapi\DwmFlush", "Int")
     }
 
     HideWindow() {
@@ -232,6 +244,16 @@ class ImagePainter {
         this.windowCreatedTick := this._tick()
     }
 
+    _isLargeMove() {
+        if !this.rebuildOnLargeMove or this.largeMoveThreshold <= 0
+            return false
+        if (this.current.x == "" or this.current.y == "" or this.prev.x == "" or this.prev.y == "")
+            return false
+
+        return Abs(this.current.x - this.prev.x) >= this.largeMoveThreshold
+            or Abs(this.current.y - this.prev.y) >= this.largeMoveThreshold
+    }
+
     _showAtPosition() {
         this._dropStaleWindow()
         if this.window == ""
@@ -240,7 +262,14 @@ class ImagePainter {
         movingVisibleWindow := this.windowVisible and
             (this.current.x != this.prev.x or this.current.y != this.prev.y)
 
-        if this.hideBeforeMove and movingVisibleWindow {
+        if movingVisibleWindow and this._isLargeMove() {
+            ; Large caret jumps are common while Chromium rebuilds content.
+            ; Do not teleport the same compositor surface across the page:
+            ; destroy it, flush that disappearance, then create a fresh overlay.
+            this.RemoveWindow(true)
+            if !this._ensureWindow()
+                return
+        } else if this.hideBeforeMove and movingVisibleWindow {
             this.HideWindow()
             if this.window == ""
                 return
