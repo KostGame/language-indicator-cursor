@@ -196,27 +196,40 @@ class ImagePainter {
 
     _ownedOverlayHwnds(excludeHwnd := 0) {
         result := []
-        previousDetectHidden := A_DetectHiddenWindows
-        try {
-            DetectHiddenWindows(true)
-            hwnds := WinGetList("ahk_pid " . A_Pid)
+        afterHwnd := 0
 
-            for hwnd in hwnds {
-                if (excludeHwnd and hwnd == excludeHwnd)
-                    continue
+        Loop {
+            ; FindWindowExW matches the exact top-level window title without
+            ; synchronously querying every window in this process. That avoids
+            ; the self-query stalls WinGetList/WinGetTitle can cause in AHK.
+            hwnd := 0
+            try hwnd := DllCall(
+                "user32\FindWindowExW",
+                "ptr", 0,
+                "ptr", afterHwnd,
+                "ptr", 0,
+                "str", this.windowTitle,
+                "ptr"
+            )
+            catch
+                break
 
-                try title := WinGetTitle("ahk_id " . hwnd)
-                catch
-                    continue
+            if !hwnd
+                break
+            afterHwnd := hwnd
 
-                if title == this.windowTitle
-                    result.Push(hwnd)
-            }
-        } catch {
-            return result
-        } finally {
-            DetectHiddenWindows(previousDetectHidden)
+            if (excludeHwnd and hwnd == excludeHwnd)
+                continue
+
+            ownerPid := 0
+            try DllCall("user32\GetWindowThreadProcessId", "ptr", hwnd, "uint*", &ownerPid)
+            catch
+                continue
+
+            if ownerPid == A_Pid
+                result.Push(hwnd)
         }
+
         return result
     }
 
