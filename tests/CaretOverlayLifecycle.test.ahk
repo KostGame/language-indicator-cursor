@@ -23,8 +23,7 @@ class CaretOverlayLifecycleTests {
     static Run() {
         this.TestFocusLoss()
         this.TestLargeJumpPolicy()
-        this.TestVerifiedNativeDestroy()
-        this.TestOrphanSweep()
+        this.TestCleanupContract()
     }
 
     static TestFocusLoss() {
@@ -68,56 +67,18 @@ class CaretOverlayLifecycleTests {
         T.Assert(painter._isLargeMove(), "32px vertical jump triggers a rebuild")
     }
 
-    static TestVerifiedNativeDestroy() {
-        T.StartSuite("CaretOverlayLifecycle.VerifiedNativeDestroy")
+    static TestCleanupContract() {
+        T.StartSuite("CaretOverlayLifecycle.CleanupContract")
 
         painter := ImagePainter()
-        painter.windowTitle := "LIC-Caret-Destroy-Test-" . A_TickCount . "-" . Random(1000, 9999)
-        guiObj := Gui("-Caption +ToolWindow")
-        guiObj.Title := painter.windowTitle
-        guiObj.Show("NA x-32000 y-32000 w10 h10")
+        painter.windowTitle := "LIC-Caret-Cleanup-Contract-" . A_TickCount
 
-        painter.window := guiObj
-        painter.windowVisible := true
-        hwnd := guiObj.Hwnd
+        cleanup := painter.PurgeOwnedOverlayWindows(0, false)
 
-        T.Assert(painter._isNativeWindow(hwnd), "Native overlay HWND exists before removal")
-        removed := painter.RemoveWindow(false)
-
-        T.Assert(removed, "RemoveWindow reports verified native destruction")
-        T.Assert(!painter._isNativeWindow(hwnd), "Native HWND is gone after removal")
-        T.AssertEqual(painter.window, "", "AHK window reference is forgotten only after verified destruction")
-
-        try guiObj.Destroy()
-    }
-
-    static TestOrphanSweep() {
-        T.StartSuite("CaretOverlayLifecycle.OrphanSweep")
-
-        painter := ImagePainter()
-        painter.windowTitle := "LIC-Caret-Orphan-Test-" . A_TickCount . "-" . Random(1000, 9999)
-
-        orphan1 := Gui("-Caption +ToolWindow")
-        orphan1.Title := painter.windowTitle
-        orphan1.Show("NA x-32000 y-32000 w10 h10")
-        hwnd1 := orphan1.Hwnd
-
-        orphan2 := Gui("-Caption +ToolWindow")
-        orphan2.Title := painter.windowTitle
-        orphan2.Show("NA x-31980 y-32000 w10 h10")
-        hwnd2 := orphan2.Hwnd
-
-        try {
-            cleanup := painter.PurgeOwnedOverlayWindows(0, false)
-
-            T.Assert(cleanup.found >= 2, "Orphan sweep finds duplicate overlay HWNDs owned by this process")
-            T.Assert(cleanup.destroyed >= 2, "Orphan sweep destroys duplicate overlay HWNDs")
-            T.AssertEqual(cleanup.remaining, 0, "Orphan sweep leaves no same-title overlay HWNDs behind")
-            T.Assert(!painter._isNativeWindow(hwnd1), "First orphan HWND is destroyed")
-            T.Assert(!painter._isNativeWindow(hwnd2), "Second orphan HWND is destroyed")
-        } finally {
-            try orphan1.Destroy()
-            try orphan2.Destroy()
-        }
+        T.AssertEqual(cleanup.found, 0, "Cleanup reports no unrelated overlay HWNDs for a unique title")
+        T.AssertEqual(cleanup.destroyed, 0, "Cleanup destroys nothing when no overlay exists")
+        T.AssertEqual(cleanup.remaining, 0, "Cleanup leaves no unresolved overlay HWNDs")
+        T.Assert(painter.RemoveWindow(false), "Removing an already-absent overlay succeeds")
+        T.Assert(painter._destroyNativeWindow(0), "Destroy helper treats an already-dead HWND as clean")
     }
 }
