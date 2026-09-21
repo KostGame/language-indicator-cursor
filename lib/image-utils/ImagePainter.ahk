@@ -1,6 +1,8 @@
 ; Reliable native overlay renderer for the floating language flags.
 #requires AutoHotkey v2.0
 
+#include ..\utils\RuntimeLog.ahk
+
 class ImagePainter {
     __New() {
         this.window := ""
@@ -40,8 +42,10 @@ class ImagePainter {
         this._dropStaleWindow()
         imageChanged := this._hasImageChanged()
 
-        if (this.window != "" and (imageChanged or this._shouldHealthRefresh()))
-            this.RemoveWindow()
+        if (this.window != "" and (imageChanged or this._shouldHealthRefresh())) {
+            if !this.RemoveWindow()
+                return
+        }
 
         if this._canSkipRepaint(imageChanged)
             return
@@ -56,6 +60,9 @@ class ImagePainter {
     }
 
     HealthCheck() {
+        currentHwnd := this._getWindowHwnd()
+        this.PurgeOwnedOverlayWindows(currentHwnd, true)
+
         if this.window == ""
             return
 
@@ -69,18 +76,72 @@ class ImagePainter {
     }
 
     RemoveWindow(flushComposition := false) {
-        if this.window != ""
+        hwnd := this._getWindowHwnd()
+
+        if hwnd {
+            ; Hide first so even a delayed destruction cannot keep painting.
+            try this.window.Hide()
+            try DllCall("user32\ShowWindow", "ptr", hwnd, "int", 0)
+            this.windowVisible := false
+        }
+
+        if this.window != "" {
             try this.window.Destroy()
+        }
+
+        ; Gui.Destroy() may throw or return while a native HWND is still alive.
+        ; Never drop our only handle until native destruction is confirmed.
+        if hwnd and this._isNativeWindow(hwnd)
+            this._destroyNativeWindow(hwnd)
+
+        if hwnd and this._isNativeWindow(hwnd) {
+            this.windowVisible := false
+            RuntimeLogError(
+                "ImagePainter.RemoveWindow",
+                Error("Overlay HWND survived Gui.Destroy and DestroyWindow: " . hwnd . " title=" . this.windowTitle)
+            )
+            return false
+        }
+
         this._forgetWindow()
+
+        ; Sweep any earlier orphaned windows that no longer have an AHK object.
+        cleanup := this.PurgeOwnedOverlayWindows(0, false)
 
         if flushComposition
             this.FlushComposition()
+
+        return cleanup.remaining == 0
+    }
+
+    PurgeOwnedOverlayWindows(excludeHwnd := 0, flushComposition := false) {
+        found := 0
+        destroyed := 0
+        remaining := 0
+
+        for hwnd in this._ownedOverlayHwnds(excludeHwnd) {
+            found += 1
+            try DllCall("user32\ShowWindow", "ptr", hwnd, "int", 0)
+            if this._destroyNativeWindow(hwnd)
+                destroyed += 1
+            else
+                remaining += 1
+        }
+
+        if found > 0 and flushComposition
+            this.FlushComposition()
+
+        if remaining > 0 {
+            RuntimeLogError(
+                "ImagePainter.PurgeOwnedOverlayWindows",
+                Error("Could not destroy " . remaining . " orphan overlay window(s) titled " . this.windowTitle)
+            )
+        }
+
+        return { found: found, destroyed: destroyed, remaining: remaining }
     }
 
     FlushComposition() {
-        ; Chromium/Electron can move and repaint in several compositor phases.
-        ; Waiting for DWM to commit a destroyed overlay prevents the same
-        ; top-level surface from leaving visual copies at old coordinates.
         try DllCall("dwmapi\DwmFlush", "Int")
     }
 
@@ -95,27 +156,71 @@ class ImagePainter {
 
         try this.window.Hide()
         catch {
-            this._forgetWindow()
+            ; Do not forget a potentially live native window here.
+            hwnd := this._getWindowHwnd()
+            if hwnd
+                try DllCall("user32\ShowWindow", "ptr", hwnd, "int", 0)
+            this.windowVisible := false
             return
         }
         this.windowVisible := false
     }
 
-    _windowExists() {
+    _getWindowHwnd() {
         if this.window == ""
+            return 0
+        try return this.window.Hwnd
+        catch
+            return 0
+    }
+
+    _isNativeWindow(hwnd) {
+        if !hwnd
             return false
-        try {
-            hwnd := this.window.Hwnd
-            return hwnd and DllCall("IsWindow", "Ptr", hwnd, "Int")
-        } catch {
+        try return DllCall("user32\IsWindow", "ptr", hwnd, "int") != 0
+        catch
             return false
+    }
+
+    _destroyNativeWindow(hwnd) {
+        if !this._isNativeWindow(hwnd)
+            return true
+
+        try DllCall("user32\DestroyWindow", "ptr", hwnd, "int")
+        catch
+            return false
+
+        return !this._isNativeWindow(hwnd)
+    }
+
+    _ownedOverlayHwnds(excludeHwnd := 0) {
+        result := []
+        try hwnds := WinGetList("ahk_pid " . A_Pid)
+        catch
+            return result
+
+        for hwnd in hwnds {
+            if (excludeHwnd and hwnd == excludeHwnd)
+                continue
+
+            try title := WinGetTitle("ahk_id " . hwnd)
+            catch
+                continue
+
+            if title == this.windowTitle
+                result.Push(hwnd)
         }
+        return result
+    }
+
+    _windowExists() {
+        return this._isNativeWindow(this._getWindowHwnd())
     }
 
     _pictureExists() {
         if !this.pictureHwnd
             return false
-        try return DllCall("IsWindow", "Ptr", this.pictureHwnd, "Int") != 0
+        try return DllCall("user32\IsWindow", "ptr", this.pictureHwnd, "int") != 0
         catch
             return false
     }
@@ -220,18 +325,27 @@ class ImagePainter {
         if this.window != ""
             return true
 
+        cleanup := this.PurgeOwnedOverlayWindows(0, true)
+        if cleanup.remaining > 0
+            return false
+
         try {
             this._initWindow()
             return true
-        } catch {
-            this._forgetWindow()
+        } catch as err {
+            ; If construction failed after HWND creation, use the same verified
+            ; destruction path instead of merely dropping the AHK object.
+            this.RemoveWindow(true)
+            RuntimeLogError("ImagePainter.InitWindow", err)
             return false
         }
     }
 
     _initWindow() {
-        if this.window != ""
-            this.RemoveWindow()
+        if this.window != "" {
+            if !this.RemoveWindow(true)
+                throw Error("Previous overlay window could not be destroyed")
+        }
 
         this.window := Gui("-Caption +AlwaysOnTop +ToolWindow -Border -DPIScale -Resize +E0x20")
         this.window.MarginX := 0
@@ -263,10 +377,8 @@ class ImagePainter {
             (this.current.x != this.prev.x or this.current.y != this.prev.y)
 
         if movingVisibleWindow and this._isLargeMove() {
-            ; Large caret jumps are common while Chromium rebuilds content.
-            ; Do not teleport the same compositor surface across the page:
-            ; destroy it, flush that disappearance, then create a fresh overlay.
-            this.RemoveWindow(true)
+            if !this.RemoveWindow(true)
+                return
             if !this._ensureWindow()
                 return
         } else if this.hideBeforeMove and movingVisibleWindow {
