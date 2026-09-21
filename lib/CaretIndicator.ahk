@@ -24,7 +24,7 @@ class CaretIndicator extends IndicatorBase {
         inputCheckPeriod: 20,
         markRepaintPeriod: 16,
         positionCacheTtl: 120,
-        largeMoveRebuildThreshold: 64,
+        largeMoveRebuildThreshold: 32,
     }
 
     __New(cfg?) {
@@ -37,6 +37,7 @@ class CaretIndicator extends IndicatorBase {
         this.markPainter.hideBeforeMove := true
         this.markPainter.rebuildOnLargeMove := true
         this.markPainter.largeMoveThreshold := cfg.largeMoveRebuildThreshold
+        this.markPainter.flushOnRebuild := true
         this.getCachedPosition := UseCachedWhileIdle(
             () => this.ComputePosition(),
             this.cfg.positionCacheTtl
