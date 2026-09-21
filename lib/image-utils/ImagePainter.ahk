@@ -195,20 +195,26 @@ class ImagePainter {
 
     _ownedOverlayHwnds(excludeHwnd := 0) {
         result := []
-        try hwnds := WinGetList("ahk_pid " . A_Pid)
-        catch
+        previousDetectHidden := A_DetectHiddenWindows
+        try {
+            DetectHiddenWindows(true)
+            hwnds := WinGetList("ahk_pid " . A_Pid)
+
+            for hwnd in hwnds {
+                if (excludeHwnd and hwnd == excludeHwnd)
+                    continue
+
+                try title := WinGetTitle("ahk_id " . hwnd)
+                catch
+                    continue
+
+                if title == this.windowTitle
+                    result.Push(hwnd)
+            }
+        } catch {
             return result
-
-        for hwnd in hwnds {
-            if (excludeHwnd and hwnd == excludeHwnd)
-                continue
-
-            try title := WinGetTitle("ahk_id " . hwnd)
-            catch
-                continue
-
-            if title == this.windowTitle
-                result.Push(hwnd)
+        } finally {
+            DetectHiddenWindows(previousDetectHidden)
         }
         return result
     }
