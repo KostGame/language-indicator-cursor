@@ -4,6 +4,8 @@
 #include ..\utils\RuntimeLog.ahk
 
 class ImagePainter {
+    static ownedHwnds := Map()
+
     __New() {
         this.window := ""
         this.picture := ""
@@ -104,6 +106,8 @@ class ImagePainter {
             return false
         }
 
+        if hwnd
+            this._untrackHwnd(hwnd)
         this._forgetWindow()
 
         ; Sweep any earlier orphaned windows that no longer have an AHK object.
@@ -120,7 +124,7 @@ class ImagePainter {
         destroyed := 0
         remaining := 0
 
-        for hwnd in this._ownedOverlayHwnds(excludeHwnd) {
+        for hwnd in this._registeredOverlayHwnds(excludeHwnd) {
             found += 1
             try DllCall("user32\ShowWindow", "ptr", hwnd, "int", 0)
             if this._destroyNativeWindow(hwnd)
@@ -194,41 +198,34 @@ class ImagePainter {
         return !this._isNativeWindow(hwnd)
     }
 
-    _ownedOverlayHwnds(excludeHwnd := 0) {
+    _trackHwnd(hwnd) {
+        if hwnd
+            ImagePainter.ownedHwnds[hwnd] := this.windowTitle
+    }
+
+    _untrackHwnd(hwnd) {
+        if hwnd and ImagePainter.ownedHwnds.Has(hwnd)
+            ImagePainter.ownedHwnds.Delete(hwnd)
+    }
+
+    _registeredOverlayHwnds(excludeHwnd := 0) {
         result := []
-        afterHwnd := 0
+        stale := []
 
-        Loop {
-            ; FindWindowExW matches the exact top-level window title without
-            ; synchronously querying every window in this process. That avoids
-            ; the self-query stalls WinGetList/WinGetTitle can cause in AHK.
-            hwnd := 0
-            try hwnd := DllCall(
-                "user32\FindWindowExW",
-                "ptr", 0,
-                "ptr", afterHwnd,
-                "ptr", 0,
-                "str", this.windowTitle,
-                "ptr"
-            )
-            catch
-                break
-
-            if !hwnd
-                break
-            afterHwnd := hwnd
-
+        for hwnd, title in ImagePainter.ownedHwnds {
+            if !this._isNativeWindow(hwnd) {
+                stale.Push(hwnd)
+                continue
+            }
+            if title != this.windowTitle
+                continue
             if (excludeHwnd and hwnd == excludeHwnd)
                 continue
-
-            ownerPid := 0
-            try DllCall("user32\GetWindowThreadProcessId", "ptr", hwnd, "uint*", &ownerPid)
-            catch
-                continue
-
-            if ownerPid == A_Pid
-                result.Push(hwnd)
+            result.Push(hwnd)
         }
+
+        for hwnd in stale
+            this._untrackHwnd(hwnd)
 
         return result
     }
@@ -375,6 +372,7 @@ class ImagePainter {
         pictureOptions := "x0 y0 w" . this.current.w . " h" . this.current.h
         this.picture := this.window.Add("Picture", pictureOptions, this.current.image)
         this.pictureHwnd := this.picture.Hwnd
+        this._trackHwnd(this.window.Hwnd)
         this.windowCreatedTick := this._tick()
     }
 
