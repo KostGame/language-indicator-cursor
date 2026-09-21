@@ -14,6 +14,7 @@ class ImagePainter {
         this.hideBeforeMove := false
         this.rebuildOnLargeMove := false
         this.largeMoveThreshold := 64
+        this.flushOnRebuild := false
         this.healthRefreshPeriod := 10000
         this.margin := { x: 0, y: 0 }
         this.scale := 1
@@ -43,7 +44,7 @@ class ImagePainter {
         imageChanged := this._hasImageChanged()
 
         if (this.window != "" and (imageChanged or this._shouldHealthRefresh())) {
-            if !this.RemoveWindow()
+            if !this.RemoveWindow(this.flushOnRebuild)
                 return
         }
 
@@ -68,11 +69,11 @@ class ImagePainter {
 
         this._dropStaleWindow()
         if (this.window != "" and this._shouldHealthRefresh())
-            this.RemoveWindow()
+            this.RemoveWindow(this.flushOnRebuild)
     }
 
     ForceRebuild() {
-        this.RemoveWindow()
+        this.RemoveWindow(this.flushOnRebuild)
     }
 
     RemoveWindow(flushComposition := false) {
