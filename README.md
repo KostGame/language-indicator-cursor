@@ -2,6 +2,10 @@
 
 Fork of `yakunins/language-indicator`, tuned for a multi-monitor RU/EN workflow. The primary mode shows the active keyboard language next to the text caret so the layout is visible exactly where you type. An optional mouse-following flag is still available from the tray menu, but is disabled by default.
 
+## 0.80-kost.2: caret overlay ghost hotfix
+
+This hotfix hardens caret overlay cleanup after extended real-world testing in Chromium/Electron interfaces such as ChatGPT. Native overlay HWND destruction is verified before repaint, orphan handles created by the process are tracked and swept, destructive rebuilds flush DWM composition, and medium caret jumps now use the safe destroy/recreate path.
+
 ## 0.80: colored system cursors
 
 `0.80-kost.1` adds a second language cue that does not depend on caret detection: the actual Windows system cursor receives a thin colored outline.

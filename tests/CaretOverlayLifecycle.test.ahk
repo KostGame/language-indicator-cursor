@@ -11,6 +11,7 @@ class CaretOverlayPainterFake {
     RemoveWindow(flushComposition := false) {
         this.removed := true
         this.flushRequested := flushComposition
+        return true
     }
 
     ClearAll() {
@@ -22,6 +23,7 @@ class CaretOverlayLifecycleTests {
     static Run() {
         this.TestFocusLoss()
         this.TestLargeJumpPolicy()
+        this.TestCleanupContract()
     }
 
     static TestFocusLoss() {
@@ -47,7 +49,8 @@ class CaretOverlayLifecycleTests {
         painter := indicator.markPainter
 
         T.Assert(painter.rebuildOnLargeMove, "Caret overlay rebuilds instead of teleporting on large jumps")
-        T.AssertEqual(painter.largeMoveThreshold, 64, "Caret large-jump threshold is 64px")
+        T.AssertEqual(painter.largeMoveThreshold, 32, "Caret large-jump threshold is 32px")
+        T.Assert(painter.flushOnRebuild, "Caret destructive rebuilds flush DWM before repaint")
 
         painter.prev.x := 100
         painter.prev.y := 100
@@ -55,12 +58,27 @@ class CaretOverlayLifecycleTests {
         painter.current.y := 118
         T.Assert(!painter._isLargeMove(), "Normal typing movement keeps the fast hide/move path")
 
-        painter.current.x := 400
+        painter.current.x := 132
         painter.current.y := 100
-        T.Assert(painter._isLargeMove(), "Large horizontal Chromium jump triggers a rebuild")
+        T.Assert(painter._isLargeMove(), "32px horizontal jump triggers a rebuild")
 
         painter.current.x := 100
-        painter.current.y := 220
-        T.Assert(painter._isLargeMove(), "Large vertical Chromium jump triggers a rebuild")
+        painter.current.y := 132
+        T.Assert(painter._isLargeMove(), "32px vertical jump triggers a rebuild")
+    }
+
+    static TestCleanupContract() {
+        T.StartSuite("CaretOverlayLifecycle.CleanupContract")
+
+        painter := ImagePainter()
+        painter.windowTitle := "LIC-Caret-Cleanup-Contract-" . A_TickCount
+
+        cleanup := painter.PurgeOwnedOverlayWindows(0, false)
+
+        T.AssertEqual(cleanup.found, 0, "Cleanup reports no unrelated overlay HWNDs for a unique title")
+        T.AssertEqual(cleanup.destroyed, 0, "Cleanup destroys nothing when no overlay exists")
+        T.AssertEqual(cleanup.remaining, 0, "Cleanup leaves no unresolved overlay HWNDs")
+        T.Assert(painter.RemoveWindow(false), "Removing an already-absent overlay succeeds")
+        T.Assert(painter._destroyNativeWindow(0), "Destroy helper treats an already-dead HWND as clean")
     }
 }
